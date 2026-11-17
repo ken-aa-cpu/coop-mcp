@@ -20,10 +20,14 @@ from starlette.types import Receive, Scope, Send
 logger = logging.getLogger(__name__)
 
 DEFAULT_ALLOWED_REDIRECT_HOSTS = frozenset({
+    # Google / Gemini
     "oauth-redirect.googleusercontent.com",
     "oauth-redirect-sandbox.googleusercontent.com",
     "gemini.google.com",
     "vertexaisearch.cloud.google.com",
+    # Anthropic / Claude
+    "claude.ai",
+    "claude.com",
 })
 
 ACCESS_TOKEN_TTL = 3600  # 1 hour
@@ -60,12 +64,25 @@ def verify_password(password: str, stored_hash: str) -> bool:
         return False
 
 
-def is_allowed_redirect_uri(uri: str, extra_hosts: Iterable[str] = ()) -> bool:
-    """Allow only HTTPS OAuth callback URLs on trusted redirect hosts."""
+def is_allowed_redirect_uri(
+    uri: str,
+    extra_hosts: Iterable[str] = (),
+    *,
+    mode: str = "strict",
+) -> bool:
+    """Validate OAuth redirect URI under 'strict' (Gemini/Claude + allowlist) or 'permissive' (any HTTPS) mode."""
     try:
         parsed = urlparse(uri.strip())
+        host = (parsed.hostname or "").lower()
+        if not host:
+            return False
+        norm_mode = (mode or "strict").strip().lower()
+        if norm_mode == "permissive":
+            if parsed.scheme == "https":
+                return True
+            return parsed.scheme == "http" and host in ("127.0.0.1", "localhost")
         allowed = DEFAULT_ALLOWED_REDIRECT_HOSTS | {h.strip().lower() for h in extra_hosts if h.strip()}
-        return parsed.scheme == "https" and (parsed.hostname or "").lower() in allowed
+        return parsed.scheme == "https" and host in allowed
     except Exception:
         return False
 
@@ -92,6 +109,7 @@ class OAuth21Provider:
         password_hash: str,
         jwt_secret: str,
         *,
+        redirect_mode: str = "strict",
         extra_redirect_hosts: Iterable[str] = (),
         read_roots_summary: str = "configured workspace",
         write_root_summary: str = "configured output folder",
@@ -101,6 +119,7 @@ class OAuth21Provider:
         self.static_client_secret = client_secret
         self.password_hash = password_hash
         self.jwt_secret = jwt_secret
+        self.redirect_mode = redirect_mode if redirect_mode in ("strict", "permissive") else "strict"
         self.extra_redirect_hosts = tuple(extra_redirect_hosts)
         self.read_roots_summary = read_roots_summary
         self.write_root_summary = write_root_summary
@@ -290,14 +309,14 @@ class OAuth21Provider:
         if (
             not isinstance(redirect_uris, list)
             or not redirect_uris
-            or not all(is_allowed_redirect_uri(u, self.extra_redirect_hosts) for u in redirect_uris)
+            or not all(is_allowed_redirect_uri(u, self.extra_redirect_hosts, mode=self.redirect_mode) for u in redirect_uris)
         ):
             await _send_json(
                 send,
                 400,
                 {
                     "error": "invalid_redirect_uri",
-                    "error_description": "Redirect URI must use HTTPS on an allowed OAuth callback host.",
+                    "error_description": "Redirect URI is rejected by the configured OAuth redirect policy.",
                 },
             )
             return
@@ -333,8 +352,8 @@ class OAuth21Provider:
         if not self._is_known_client(client_id):
             await _send_html(send, 400, _render_error_page("Unknown or invalid client_id."))
             return
-        if not is_allowed_redirect_uri(redirect_uri, self.extra_redirect_hosts):
-            await _send_html(send, 400, _render_error_page("Redirect URI host is not in the allowlist."))
+        if not is_allowed_redirect_uri(redirect_uri, self.extra_redirect_hosts, mode=self.redirect_mode):
+            await _send_html(send, 400, _render_error_page("Redirect URI host is not allowed under the current OAuth redirect policy."))
             return
         if code_challenge and code_challenge_method != "S256":
             await _send_html(send, 400, _render_error_page("Only PKCE S256 is supported."))
@@ -351,6 +370,7 @@ class OAuth21Provider:
             csrf=csrf,
             read_roots_summary=self.read_roots_summary,
             write_root_summary=self.write_root_summary,
+            redirect_mode=self.redirect_mode,
             initial_lang=_detect_lang(scope),
             error_msg=error_msg,
         )
@@ -379,7 +399,7 @@ class OAuth21Provider:
         scope_str = _first(form, "scope") or "coop:tools"
         password = _first(form, "password")
 
-        if not self._is_known_client(client_id) or not is_allowed_redirect_uri(redirect_uri, self.extra_redirect_hosts):
+        if not self._is_known_client(client_id) or not is_allowed_redirect_uri(redirect_uri, self.extra_redirect_hosts, mode=self.redirect_mode):
             await _send_html(send, 400, _render_error_page("Invalid client_id or redirect_uri."))
             return
 
@@ -395,6 +415,7 @@ class OAuth21Provider:
                 csrf=self._issue_csrf(),
                 read_roots_summary=self.read_roots_summary,
                 write_root_summary=self.write_root_summary,
+                redirect_mode=self.redirect_mode,
                 initial_lang=_detect_lang(scope),
                 error_msg="Invalid password. Please try again.",
             )
@@ -586,10 +607,14 @@ def _render_login_page(
     csrf: str,
     read_roots_summary: str,
     write_root_summary: str,
+    redirect_mode: str = "strict",
     initial_lang: str = "en",
     error_msg: str = "",
 ) -> str:
     err_html = f'<div class="err">{html.escape(error_msg)}</div>' if error_msg else ""
+    perm_html = (
+        '<div id="t-perm-warn" class="warn"></div>' if redirect_mode == "permissive" else ""
+    )
     read_esc = html.escape(read_roots_summary)
     write_esc = html.escape(write_root_summary)
     host_esc = html.escape(urlparse(redirect_uri).hostname or "")
@@ -607,6 +632,7 @@ def _render_login_page(
   select {{ background: #0f172a; color: #cbd5e1; border: 1px solid #475569; border-radius: 8px; padding: 4px 8px; font-size: 0.8rem; }}
   p {{ font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; margin: 0 0 18px; }}
   .err {{ background: rgba(239,68,68,.15); border: 1px solid #ef4444; color: #fca5a5; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 0.9rem; }}
+  .warn {{ background: rgba(234,179,8,.14); border: 1px solid #eab308; color: #fde047; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 0.84rem; }}
   label {{ display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; }}
   input[type=password] {{ width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 10px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 1rem; margin-bottom: 16px; }}
   button {{ width: 100%; padding: 12px; border: 0; border-radius: 10px; background: #eab308; color: #0f172a; font-weight: 700; font-size: 1rem; cursor: pointer; }}
@@ -625,6 +651,7 @@ def _render_login_page(
       </select>
     </div>
     <p id="t-desc"></p>
+    {perm_html}
     {err_html}
     <form method="post" action="/oauth/authorize">
       <input type="hidden" name="client_id" value="{html.escape(client_id)}">
@@ -649,21 +676,24 @@ const I18N = {{
     desc: `An AI client is requesting sandboxed access to <strong>${{READ_ROOTS}}</strong> (outputs confined to <strong>${{WRITE_ROOT}}</strong>). Enter your gateway password to approve:`,
     pw: "Gateway Password",
     btn: "Approve & Connect",
-    cb: "Callback host:"
+    cb: "Callback host:",
+    perm: "⚠️ Permissive redirect mode is active. Verify the callback host below before approving."
   }},
   "zh-Hant": {{
     title: "🐤 CoopMCP 安全授權",
     desc: `遠端 AI 正請求沙盒存取 <strong>${{READ_ROOTS}}</strong>（輸出鎖定於 <strong>${{WRITE_ROOT}}</strong>）。請輸入閘道管理密碼以確認授權：`,
     pw: "閘道授權密碼",
     btn: "驗證並授權連線",
-    cb: "回呼目標："
+    cb: "回呼目標：",
+    perm: "⚠️ 目前為「任意 HTTPS 回呼模式（風險自負）」，授權前請務必確認下方的回呼網域是否可信。"
   }},
   "ja": {{
     title: "🐤 CoopMCP 認可ログイン",
     desc: `リモートAIが <strong>${{READ_ROOTS}}</strong> へのサンドボックスアクセスを要求しています（出力先は <strong>${{WRITE_ROOT}}</strong> に限定）。パスワードを入力して許可してください：`,
     pw: "ゲートウェイパスワード",
     btn: "認証して接続を許可",
-    cb: "コールバック先："
+    cb: "コールバック先：",
+    perm: "⚠️ 任意 HTTPS リダイレクト許可モード（自己責任）が有効です。承認前に下のコールバック先ホストを確認してください。"
   }}
 }};
 const sel = document.getElementById("lang-sel");
@@ -677,6 +707,8 @@ function applyLang(l) {{
   document.getElementById("t-pw-label").textContent = d.pw;
   document.getElementById("t-submit").textContent = d.btn;
   document.getElementById("t-cb").textContent = d.cb;
+  const pw = document.getElementById("t-perm-warn");
+  if (pw) pw.textContent = d.perm;
   sel.value = l;
   localStorage.setItem("coop_lang", l);
 }}

@@ -32,7 +32,9 @@ Exposing a gateway to the public internet requires strict isolation. CoopMCP enf
 
 1. **Always keep OAuth 2.1 + PKCE enabled (`COOP_REQUIRE_OAUTH=true`)**
    - Public `/mcp` endpoints reject static `?key=` query strings whenever OAuth is enabled, preventing URL leakage in browser history or proxy logs.
-   - Login uses PBKDF2-HMAC-SHA256 password verification, CSRF tokens, IP rate-limiting, and strict HTTPS callback host allowlists (`COOP_OAUTH_ALLOWED_REDIRECT_HOSTS`).
+   - Login uses PBKDF2-HMAC-SHA256 password verification, CSRF tokens, IP rate-limiting, and configurable OAuth redirect policies (`COOP_OAUTH_REDIRECT_MODE=strict|permissive`):
+     - `strict` (recommended default): restricts callbacks to built-in **Gemini** & **Claude** hosts plus `COOP_OAUTH_ALLOWED_REDIRECT_HOSTS`.
+     - `permissive` (use at your own risk): accepts any HTTPS callback URL (and loopback `http://127.0.0.1|localhost`) for other MCP clients; always verify the callback host displayed on the login page before approving.
 2. **Loopback-Only Settings UI & Control Plane (`/ui`, `/api/ui/*`, `/health`, `/admin/revoke`)**
    - Every local management route checks direct loopback peer IP (`127.0.0.1` / `::1`) **and rejects any request containing proxy headers** (`X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `Forwarded`, `X-Real-IP`).
    - Browser requests also require a loopback `Origin` and `X-Coop-Local-Key` (`MCP_SECRET_KEY`), blocking remote tunnels and cross-site browser attacks from reading or changing settings.

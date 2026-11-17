@@ -28,7 +28,7 @@ import httpx2 as httpx
 import uvicorn
 
 from files_tools import PathPolicy
-from oauth_provider import OAuth21Provider, hash_password
+from oauth_provider import OAuth21Provider, hash_password, is_allowed_redirect_uri
 import server as gw_server
 
 
@@ -122,9 +122,23 @@ async def run_tests() -> None:
                 assert asm["authorization_endpoint"] == f"{public_url}/oauth/authorize"
                 assert asm["token_endpoint"] == f"{public_url}/oauth/token"
 
+                # 4b. Redirect URI policy modes: strict (Gemini + Claude + allowlist) vs permissive
+                assert is_allowed_redirect_uri("https://gemini.google.com/oauth/callback", mode="strict")
+                assert is_allowed_redirect_uri("https://claude.ai/api/mcp/auth_callback", mode="strict")
+                assert is_allowed_redirect_uri("https://claude.com/api/mcp/auth_callback", mode="strict")
+                assert not is_allowed_redirect_uri("https://untrusted.example/cb", mode="strict")
+                assert is_allowed_redirect_uri("https://custom.example/cb", extra_hosts=("custom.example",), mode="strict")
+                assert is_allowed_redirect_uri("https://untrusted.example/cb", mode="permissive")
+                assert not is_allowed_redirect_uri("http://untrusted.example/cb", mode="permissive")
+
+                dcr_bad = await client.post("/oauth/register", json={"redirect_uris": ["https://untrusted.example/cb"]})
+                assert dcr_bad.status_code == 400
+                dcr_claude = await client.post("/oauth/register", json={"redirect_uris": ["https://claude.ai/api/mcp/auth_callback"]})
+                assert dcr_claude.status_code == 201
+
                 # 5. Authorize GET + wrong password rejected
                 verifier, challenge = _pkce_pair()
-                redirect_uri = "https://gemini.google.com/oauth/callback"
+                redirect_uri = "https://claude.ai/api/mcp/auth_callback"
                 auth_qs = {
                     "response_type": "code",
                     "client_id": client_id,

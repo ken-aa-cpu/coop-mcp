@@ -234,8 +234,16 @@
             <label><input id="cfg-require-oauth" type="checkbox" style="width:auto;margin-right:6px;"> <span id="lbl-req-oauth">Require OAuth 2.1 + PKCE (Recommended for public tunnels)</span></label>
           </div>
           <div class="field">
+            <label id="lbl-redir-mode">OAuth Redirect Policy</label>
+            <select id="cfg-redirect-mode" style="width:100%">
+              <option value="strict" id="opt-redir-strict">Strict Allowlist (Gemini + Claude + Custom Hosts)</option>
+              <option value="permissive" id="opt-redir-perm">Allow Any HTTPS Redirect (Use at your own risk)</option>
+            </select>
+            <div id="redir-mode-warn" class="muted hidden" style="color:#fde047;margin-top:4px;"></div>
+          </div>
+          <div class="field" id="extra-hosts-wrap">
             <label id="lbl-extra-hosts">Extra Allowed Redirect Hosts (comma-separated)</label>
-            <input id="cfg-extra-hosts" placeholder="claude.ai, chatgpt.com">
+            <input id="cfg-extra-hosts" placeholder="chatgpt.com, custom-client.example.com">
           </div>
           <div class="field">
             <label id="lbl-new-pw">New OAuth Login Password (min 8 chars; leave blank to keep)</label>
@@ -373,7 +381,7 @@ const I18N = {
     ovConn: "Remote AI Connection",
     ovUrl: "MCP Endpoint URL",
     ovCid: "OAuth Client ID",
-    ovHint: "Paste the MCP Endpoint URL into Gemini Settings → Connected Apps. Leave Client Secret empty if using Dynamic Client Registration or standard OAuth flow.",
+    ovHint: "Paste the MCP Endpoint URL into Gemini, Claude, or any compatible remote MCP client. Leave Client Secret empty if using Dynamic Client Registration or standard OAuth flow.",
     ovStat: "Gateway Status",
     refresh: "Refresh",
     revoke: "Lock Sandbox & Revoke Tokens",
@@ -389,6 +397,10 @@ const I18N = {
     saveSandbox: "Save Sandbox Settings",
     secAuth: "OAuth Login & Admin PIN",
     reqOauth: "Require OAuth 2.1 + PKCE (Recommended for public tunnels)",
+    redirMode: "OAuth Redirect Policy",
+    optStrict: "Strict Allowlist (Gemini + Claude + Custom Hosts)",
+    optPerm: "Allow Any HTTPS Redirect (Use at your own risk)",
+    permWarn: "⚠️ Permissive mode accepts any HTTPS callback URL. Always verify the callback host shown on the OAuth consent page before signing in.",
     extraHosts: "Extra Allowed Redirect Hosts (comma-separated)",
     newPw: "New OAuth Login Password (min 8 chars; leave blank to keep)",
     newPin: "New Admin Unlock PIN (min 4 chars; leave blank to keep)",
@@ -436,7 +448,7 @@ const I18N = {
     ovConn: "遠端 AI 連線資訊",
     ovUrl: "MCP 端點網址",
     ovCid: "OAuth 用戶端 ID",
-    ovHint: "將上方的 MCP 端點網址貼到 Gemini 設定 → 已連結的應用程式。若透過標準 OAuth 登入，用戶端密鑰可留空。",
+    ovHint: "將上方的 MCP 端點網址貼到 Gemini、Claude 或其他支援遠端 OAuth 的 MCP 用戶端。若使用標準 OAuth／動態註冊，用戶端密鑰可留空。",
     ovStat: "閘道運行狀態",
     refresh: "重新整理",
     revoke: "立即上鎖並作廢所有 AI 憑證",
@@ -452,7 +464,11 @@ const I18N = {
     saveSandbox: "儲存沙盒設定",
     secAuth: "OAuth 授權密碼與 Admin PIN",
     reqOauth: "強制啟用 OAuth 2.1 + PKCE（公開網址強烈建議開啟）",
-    extraHosts: "額外允許的 OAuth 回呼網域（逗號分隔）",
+    redirMode: "OAuth 回呼網址過濾模式",
+    optStrict: "嚴格白名單模式（僅 Gemini + Claude + 自訂網域）",
+    optPerm: "開放任意 HTTPS 回呼（風險自負）",
+    permWarn: "⚠️ 開放模式會允許任何 HTTPS 回呼網域，於網頁授權輸入密碼前請務必核對畫面下方的回呼目標是否可信。",
+    extraHosts: "額外允許的 OAuth 回呼網域（嚴格模式用，逗號分隔）",
     newPw: "新 OAuth 登入密碼（至少 8 字元；不改請留空）",
     newPin: "新 Admin 解鎖 PIN（至少 4 字元；不改請留空）",
     saveAuth: "更新密碼／憑證",
@@ -499,7 +515,7 @@ const I18N = {
     ovConn: "リモート AI 接続情報",
     ovUrl: "MCP エンドポイント URL",
     ovCid: "OAuth クライアント ID",
-    ovHint: "上の MCP URL を Gemini 設定の連携アプリに登録してください。",
+    ovHint: "上の MCP URL を Gemini、Claude などのリモート MCP クライアントに登録してください。動的登録/標準 OAuth ではクライアントシークレットは空欄で構いません。",
     ovStat: "ゲートウェイ状態",
     refresh: "更新",
     revoke: "サンドボックスを再ロックしてトークン失効",
@@ -515,7 +531,11 @@ const I18N = {
     saveSandbox: "サンドボックス設定を保存",
     secAuth: "OAuth パスワード・Admin PIN",
     reqOauth: "OAuth 2.1 + PKCE を必須にする（公開時は推奨）",
-    extraHosts: "追加許可リダイレクトホスト（カンマ区切り）",
+    redirMode: "OAuth リダイレクト制限モード",
+    optStrict: "厳格ホワイトリスト（Gemini + Claude + 追加ホストのみ）",
+    optPerm: "任意の HTTPS リダイレクトを許可（自己責任）",
+    permWarn: "⚠️ 許可モードでは任意の HTTPS コールバックが通ります。ログイン承認前に必ず表示されるコールバック先を確認してください。",
+    extraHosts: "追加許可リダイレクトホスト（厳格モード用、カンマ区切り）",
     newPw: "新しい OAuth パスワード（8文字以上・空欄で維持）",
     newPin: "新しい Admin PIN（4文字以上・空欄で維持）",
     saveAuth: "認証情報を更新",
@@ -604,6 +624,10 @@ function applyLang(l) {
   document.getElementById("btn-save-sandbox").textContent = d.saveSandbox;
   document.getElementById("sec-auth-title").textContent = d.secAuth;
   document.getElementById("lbl-req-oauth").textContent = d.reqOauth;
+  document.getElementById("lbl-redir-mode").textContent = d.redirMode;
+  document.getElementById("opt-redir-strict").textContent = d.optStrict;
+  document.getElementById("opt-redir-perm").textContent = d.optPerm;
+  document.getElementById("redir-mode-warn").textContent = d.permWarn;
   document.getElementById("lbl-extra-hosts").textContent = d.extraHosts;
   document.getElementById("lbl-new-pw").textContent = d.newPw;
   document.getElementById("lbl-new-pin").textContent = d.newPin;
@@ -682,6 +706,8 @@ function renderState(st) {
   document.getElementById("cfg-max-steps").value = c.max_batch_steps;
   document.getElementById("cfg-idle").value = c.idle_timeout;
   document.getElementById("cfg-require-oauth").checked = !!c.require_oauth;
+  document.getElementById("cfg-redirect-mode").value = c.oauth_redirect_mode || "strict";
+  syncRedirectModeUi(document.getElementById("cfg-redirect-mode").value);
   document.getElementById("cfg-extra-hosts").value = (c.oauth_extra_redirect_hosts || []).join(", ");
 
   document.getElementById("cfg-tunnel-mode").value = c.tunnel_mode;
@@ -807,10 +833,18 @@ document.getElementById("btn-save-sandbox").addEventListener("click", async () =
   } catch (e) { toast(e.message); }
 });
 
+function syncRedirectModeUi(rm) {
+  const isPerm = rm === "permissive";
+  document.getElementById("redir-mode-warn").classList.toggle("hidden", !isPerm);
+  document.getElementById("extra-hosts-wrap").classList.toggle("hidden", isPerm);
+}
+document.getElementById("cfg-redirect-mode").addEventListener("change", e => syncRedirectModeUi(e.target.value));
+
 document.getElementById("btn-save-auth").addEventListener("click", async () => {
   try {
     const res = await api("/api/ui/config", "POST", {
       require_oauth: document.getElementById("cfg-require-oauth").checked,
+      oauth_redirect_mode: document.getElementById("cfg-redirect-mode").value,
       oauth_extra_redirect_hosts: document.getElementById("cfg-extra-hosts").value,
       new_oauth_password: document.getElementById("cfg-new-pw").value,
       new_admin_pin: document.getElementById("cfg-new-pin").value,

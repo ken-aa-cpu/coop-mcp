@@ -8,8 +8,9 @@
    - Starts the Chick system tray controller silently in the background.
    - Opens the trilingual **Settings UI** (`http://127.0.0.1:8089/ui`) in your browser.
 3. In **Sandbox & Security**, set:
-   - **OAuth Login Password** (min 8 characters) — used when connecting from Gemini Web/Mobile.
+   - **OAuth Login Password** (min 8 characters) — used when connecting from Gemini, Claude, or other remote MCP clients.
    - **Admin Unlock PIN** (min 4 characters) — optional second-layer PIN for temporary terminal access.
+   - **OAuth Redirect Policy** — choose **Strict Allowlist** (Gemini + Claude + custom hosts) or **Allow Any HTTPS Redirect (Use at your own risk)**.
 4. Configure your tunnel in **Tunnel & Domain**, save, and click **Restart Gateway** from the chick tray icon.
 5. Anytime later, double-click **`Open_Settings_UI.bat`** or right-click the chick tray icon → **Open Settings UI**.
 
@@ -36,8 +37,8 @@ docker run --rm coop-mcp:test
 
 ---
 
-## Connecting from Gemini Web / Mobile
+## Connecting from Gemini, Claude, or Other Remote MCP Clients
 
 1. Copy the **MCP Endpoint URL** (`https://your-domain/mcp`) from the Settings UI or tray menu.
-2. Open **Gemini Settings → Connected Apps / MCP Servers** and paste the URL (leave Client ID/Secret empty for standard OAuth / DCR).
+2. Add it in **Gemini Settings → Connected Apps**, **Claude Settings → Connectors**, or any remote MCP client supporting OAuth 2.1 + PKCE (leave Client Secret empty for DCR / standard OAuth).
 3. Complete the CoopMCP password prompt in the OAuth popup.

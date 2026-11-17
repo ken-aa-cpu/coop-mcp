@@ -5,7 +5,9 @@ Exposing your local machine to a remote AI over HTTPS requires strict defense-in
 ## 1. OAuth 2.1 + PKCE Authentication
 - Always keep `COOP_REQUIRE_OAUTH=true` when exposing CoopMCP through a public tunnel.
 - Static `?key=` authentication is automatically **rejected** on `/mcp` whenever OAuth is enabled.
-- Supports PKCE `S256`, CSRF-protected PBKDF2-HMAC-SHA256 login forms, IP brute-force lockout, and strict HTTPS callback host allowlists (`COOP_OAUTH_ALLOWED_REDIRECT_HOSTS`).
+- Supports PKCE `S256`, CSRF-protected PBKDF2-HMAC-SHA256 login forms, IP brute-force lockout, and two redirect modes (`COOP_OAUTH_REDIRECT_MODE`):
+  - **Strict Mode (Default)**: Only allows HTTPS callbacks to built-in **Gemini** (`gemini.google.com`, `oauth-redirect.googleusercontent.com`, `vertexaisearch.cloud.google.com`) and **Claude** (`claude.ai`, `claude.com`) hosts, plus optional `COOP_OAUTH_ALLOWED_REDIRECT_HOSTS`.
+  - **Permissive Mode (Use at your own risk)**: Accepts any HTTPS callback URI (`permissive`) so third-party MCP clients can connect without manual allowlisting; always inspect the callback host displayed on the login prompt before signing in.
 
 ## 2. Loopback-Only Settings UI & Control Plane
 - `/ui`, `/api/ui/*`, `/health`, and `/admin/revoke` strictly verify:

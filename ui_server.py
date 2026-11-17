@@ -148,6 +148,7 @@ class LocalUiController:
                 "max_batch_steps": cfg.max_batch_steps,
                 "require_oauth": cfg.require_oauth,
                 "oauth_client_id": cfg.oauth_client_id,
+                "oauth_redirect_mode": cfg.oauth_redirect_mode,
                 "oauth_extra_redirect_hosts": list(cfg.oauth_extra_redirect_hosts),
                 "oauth_password_configured": bool(cfg.oauth_password_hash or cfg.oauth_password_plain),
                 "admin_pin_configured": bool(cfg.admin_pin_hash or cfg.admin_pin_plain),
@@ -178,6 +179,7 @@ class LocalUiController:
             "COOP_SSH_REMOTE_PORT",
             "COOP_REQUIRE_OAUTH",
             "COOP_OAUTH_CLIENT_ID",
+            "COOP_OAUTH_REDIRECT_MODE",
             "COOP_OAUTH_ALLOWED_REDIRECT_HOSTS",
         }
         str_map = {
@@ -201,6 +203,12 @@ class LocalUiController:
                 updates["COOP_READ_ROOTS"] = ",".join(str(x).strip() for x in raw_rr if str(x).strip())
             elif isinstance(raw_rr, str):
                 updates["COOP_READ_ROOTS"] = raw_rr.strip()
+
+        if "oauth_redirect_mode" in body:
+            rm = str(body["oauth_redirect_mode"]).strip().lower()
+            if rm not in ("strict", "permissive"):
+                raise ValueError("oauth_redirect_mode must be 'strict' or 'permissive'.")
+            updates["COOP_OAUTH_REDIRECT_MODE"] = rm
 
         if "oauth_extra_redirect_hosts" in body:
             raw_rh = body["oauth_extra_redirect_hosts"]

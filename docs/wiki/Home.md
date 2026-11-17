@@ -2,7 +2,7 @@
 
 Welcome to the **CoopMCP** documentation!
 
-CoopMCP is a sandboxed HTTPS MCP gateway, self-hosted OAuth 2.1 login server, and lazy local plugin router designed to connect **remote Web & Mobile AI clients** (such as Gemini Web/Mobile) safely to your personal computer.
+CoopMCP is a sandboxed HTTPS MCP gateway, self-hosted OAuth 2.1 login server, and lazy local plugin router designed to connect **remote Web & Mobile AI clients** (such as Gemini, Claude, and other MCP clients) safely to your personal computer.
 
 ## Why CoopMCP?
 

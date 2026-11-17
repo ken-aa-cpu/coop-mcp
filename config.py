@@ -88,6 +88,7 @@ class GatewayConfig:
     oauth_jwt_secret: str
     oauth_password_hash: str
     oauth_password_plain: str
+    oauth_redirect_mode: str
     oauth_extra_redirect_hosts: tuple[str, ...]
 
     admin_pin_hash: str
@@ -124,6 +125,9 @@ class GatewayConfig:
 
         raw_extra_hosts = os.getenv("COOP_OAUTH_ALLOWED_REDIRECT_HOSTS", "").strip()
         extra_hosts = tuple(h.strip().lower() for h in raw_extra_hosts.split(",") if h.strip())
+        redirect_mode = (os.getenv("COOP_OAUTH_REDIRECT_MODE", "strict").strip().lower() or "strict")
+        if redirect_mode not in ("strict", "permissive"):
+            redirect_mode = "strict"
 
         return cls(
             host=os.getenv("HOST", "127.0.0.1").strip() or "127.0.0.1",
@@ -155,6 +159,7 @@ class GatewayConfig:
             oauth_jwt_secret=os.getenv("COOP_OAUTH_JWT_SECRET", "").strip(),
             oauth_password_hash=os.getenv("COOP_OAUTH_PASSWORD_HASH", "").strip(),
             oauth_password_plain=os.getenv("COOP_OAUTH_PASSWORD", "").strip(),
+            oauth_redirect_mode=redirect_mode,
             oauth_extra_redirect_hosts=extra_hosts,
             admin_pin_hash=os.getenv("COOP_ADMIN_PIN_HASH", "").strip(),
             admin_pin_plain=os.getenv("COOP_ADMIN_PIN", "").strip(),

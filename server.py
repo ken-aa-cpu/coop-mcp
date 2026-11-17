@@ -151,6 +151,7 @@ def _get_oauth_provider(public_url: str, cfg: GatewayConfig | None = None) -> tu
         client_secret=cfg.oauth_client_secret,
         password_hash=password_hash,
         jwt_secret=cfg.oauth_jwt_secret,
+        redirect_mode=cfg.oauth_redirect_mode,
         extra_redirect_hosts=cfg.oauth_extra_redirect_hosts,
         read_roots_summary=", ".join(str(r) for r in POLICY.read_roots),
         write_root_summary=str(POLICY.write_root),
