@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="256" height="256" viewBox="0 0 256 256">
+  <title>ChickTrayIcon</title>
+  <g id="Layer_1" data-name="Layer 1">
+    <path id="foot_left" d="M86 218 L86 236 M72 238 L86 234 L98 240" fill="none" stroke="#ff7a00" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path id="foot_right" d="M170 218 L170 236 M158 240 L170 234 L184 238" fill="none" stroke="#ff7a00" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path id="crest" d="M118 46 C108 16 134 12 134 38 C146 18 166 26 146 48 Z" fill="#ffe047" stroke="#4a3520" stroke-width="8" stroke-linejoin="round"/>
+    <path id="body" d="M128 42 C178 42 206 76 204 122 C218 148 214 196 182 214 C162 224 94 224 74 214 C42 196 38 148 52 122 C50 76 78 42 128 42 Z" fill="#ffe047" stroke="#4a3520" stroke-width="9" stroke-linejoin="round"/>
+    <ellipse id="belly" cx="128" cy="178" rx="50" ry="34" fill="#fff4b8"/>
+    <path id="wing_left" d="M54 134 C30 144 28 178 54 186 C68 190 74 164 62 142 Z" fill="#ffc933" stroke="#4a3520" stroke-width="8" stroke-linejoin="round"/>
+    <path id="wing_right" d="M202 134 C226 144 228 178 202 186 C188 190 182 164 194 142 Z" fill="#ffc933" stroke="#4a3520" stroke-width="8" stroke-linejoin="round"/>
+    <ellipse id="cheek_left" cx="81" cy="126" rx="13" ry="8" fill="#ff8fa3"/>
+    <ellipse id="cheek_right" cx="175" cy="126" rx="13" ry="8" fill="#ff8fa3"/>
+    <ellipse id="eye_left" cx="95" cy="102" rx="11" ry="12" fill="#2b1d0e"/>
+    <circle id="eye_shine_left" cx="93" cy="98" r="4" fill="#ffffff"/>
+    <ellipse id="eye_right" cx="161" cy="102" rx="11" ry="12" fill="#2b1d0e"/>
+    <circle id="eye_shine_right" cx="159" cy="98" r="4" fill="#ffffff"/>
+    <path id="beak" d="M110 114 C122 106 134 106 146 114 C148 122 134 136 128 136 C122 136 108 122 110 114 Z" fill="#ff8c1a" stroke="#4a3520" stroke-width="6" stroke-linejoin="round"/>
+  </g>
+</svg>

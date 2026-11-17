@@ -1,0 +1,31 @@
+# Secrets & local runtime config
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+apps.json
+
+# Logs & runtime state
+logs/
+*.log
+.admin_epoch
+
+# Default local workspace / outputs
+workspace/
+
+# Python / uv / virtualenvs
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Windows shortcuts & OS clutter
+*.lnk
+Thumbs.db
+desktop.ini

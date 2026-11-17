@@ -1,0 +1,24 @@
+{
+  "apps": [
+    {
+      "key": "example-sqlite",
+      "display_name": "SQLite Example",
+      "category": "Database",
+      "description": "Example stdio MCP plugin launched lazily on demand.",
+      "command": ["uvx", "mcp-server-sqlite", "--db-path", "./workspace/sample.db"],
+      "formats": [".db", ".sqlite"],
+      "root_mode": "gateway_only",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "example-cli",
+      "display_name": "Example CLI App",
+      "category": "Productivity",
+      "description": "Template for any local CLI tool exposing `app-cli mcp` over stdio.",
+      "exe_path": "C:\\Tools\\MyApp\\myapp-cli.exe",
+      "formats": [".docx", ".md"],
+      "root_mode": "automation",
+      "extra_mcp_args": ["--headless"]
+    }
+  ]
+}
