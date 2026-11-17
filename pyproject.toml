@@ -1,6 +1,6 @@
 [project]
 name = "coop-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "CoopMCP: Sandboxed HTTPS MCP gateway, OAuth 2.1 login, PIN-gated elevation, and lazy stdio/HTTP/SSE plugin router for remote AI clients"
 readme = "README.md"
 license = "MIT"

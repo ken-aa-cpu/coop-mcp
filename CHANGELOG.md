@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.1 — Multi-Client OAuth (Claude + Gemini) & Redirect Policy Modes
+
+### Highlights
+- **Claude & Generic Remote MCP Support**: Added official Anthropic/Claude callback hosts (`claude.ai`, `claude.com`) alongside Google/Gemini in the default OAuth allowlist, and updated all UI/README/Wiki descriptions for general remote MCP clients.
+- **Two OAuth Redirect Policy Modes (`COOP_OAUTH_REDIRECT_MODE`)**:
+  - `strict` (Default, Recommended): Accepts only Gemini, Claude, and user-configured `COOP_OAUTH_ALLOWED_REDIRECT_HOSTS`.
+  - `permissive` (Use at your own risk): Accepts any HTTPS redirect URI (and loopback `http://127.0.0.1` / `localhost`) with clear warnings in both the Settings UI (`zh-Hant` / `en` / `ja`) and OAuth consent page.
+
+---
+
 ## v0.1.0 — Initial Public Release
 
 ### Highlights
