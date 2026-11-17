@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import argparse
+from collections import deque
 from contextlib import asynccontextmanager
 import hmac
 import json
 import logging
 import os
 import secrets
+import time
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -37,12 +39,18 @@ from files_tools import (
 )
 from oauth_provider import OAuth21Provider, hash_password
 from plugin_router import PluginSessionManager
+from ui_server import LocalUiController
 
 logger = logging.getLogger(__name__)
 
 CFG = GatewayConfig.from_env()
 POLICY = PathPolicy.from_env(CFG)
-PLUGIN_MANAGER = PluginSessionManager(POLICY, idle_timeout_seconds=CFG.idle_timeout)
+PLUGIN_MANAGER = PluginSessionManager(
+    POLICY,
+    idle_timeout_seconds=CFG.idle_timeout,
+    soft_step_warning=CFG.soft_step_warning,
+    max_batch_steps=CFG.max_batch_steps,
+)
 
 _ADMIN_PIN_HASH = CFG.admin_pin_hash or (hash_password(CFG.admin_pin_plain) if CFG.admin_pin_plain else "")
 _ADMIN_JWT_SECRET = CFG.oauth_jwt_secret or CFG.secret_key or secrets.token_urlsafe(36)
@@ -131,11 +139,11 @@ def _get_oauth_provider(public_url: str, cfg: GatewayConfig | None = None) -> tu
         password_hash = hash_password(cfg.oauth_password_plain)
 
     if not (cfg.oauth_client_secret and cfg.oauth_jwt_secret and password_hash):
-        raise RuntimeError(
-            "COOP_REQUIRE_OAUTH=true requires COOP_OAUTH_CLIENT_SECRET, "
-            "COOP_OAUTH_JWT_SECRET, and COOP_OAUTH_PASSWORD_HASH in .env. "
-            "Run: uv run python set_oauth_password.py"
+        logger.warning(
+            "COOP_REQUIRE_OAUTH=true but OAuth credentials/password are not set yet. "
+            "/mcp will remain locked (503) until configured via local Settings UI or set_oauth_password.py."
         )
+        return True, None
 
     provider = OAuth21Provider(
         public_url=public_url,
@@ -160,12 +168,18 @@ class SecureCompatLayer:
         secret_key: str,
         oauth: OAuth21Provider | None = None,
         require_oauth: bool = False,
+        ui_controller: LocalUiController | None = None,
     ) -> None:
         self.inner = inner
         self.public_url = public_url.rstrip("/")
         self.secret_key = secret_key
         self.oauth = oauth
         self.require_oauth = require_oauth
+        self.ui_controller = ui_controller or LocalUiController(
+            secret_key=secret_key,
+            plugin_manager=PLUGIN_MANAGER,
+            admin_manager=ADMIN_MANAGER,
+        )
         self.well_known_body = json.dumps({
             "resource": f"{self.public_url}/mcp",
             "authorization_servers": [self.public_url] if oauth else [],
@@ -182,6 +196,9 @@ class SecureCompatLayer:
 
         if method == "OPTIONS":
             await self._send_bytes(send, 204, b"", CORS_HEADERS)
+            return
+
+        if await self.ui_controller.handle_http(scope, receive, send):
             return
 
         if self.oauth is not None and await self.oauth.handle_http(scope, receive, send):
@@ -201,6 +218,17 @@ class SecureCompatLayer:
                 and _is_direct_loopback(scope)
                 and _is_authorized(scope, self.secret_key)
             )
+            if self.oauth is None and not local_control_ok:
+                err_body = (
+                    b'{"jsonrpc":"2.0","error":{"code":-32000,'
+                    b'"message":"Service setup incomplete: configure OAuth password in local Settings UI."}}'
+                )
+                headers = [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(err_body)).encode("ascii")),
+                ] + CORS_HEADERS
+                await self._send_bytes(send, 503, err_body, headers)
+                return
             bearer = _extract_bearer(scope)
             oauth_ok = bool(self.oauth is not None and bearer and self.oauth.verify_bearer_token(bearer))
             if not (local_control_ok or oauth_ok):
@@ -552,8 +580,39 @@ async def plugin_list_tools(app: str, query: str = "") -> str:
         raise ToolError(str(exc)) from exc
 
 
+class _ConsumptionMonitor:
+    """Sliding-window tracker emitting non-blocking English advisories during high-frequency tool loops."""
+
+    def __init__(self, window_seconds: float = 180.0, warn_calls: int = 18) -> None:
+        self.window_seconds = window_seconds
+        self.warn_calls = warn_calls
+        self._events: deque[tuple[float, int]] = deque()
+
+    def record(self, image_count: int = 0) -> str | None:
+        now = time.monotonic()
+        self._events.append((now, image_count))
+        cutoff = now - self.window_seconds
+        while self._events and self._events[0][0] < cutoff:
+            self._events.popleft()
+        total_calls = len(self._events)
+        total_imgs = sum(ev[1] for ev in self._events)
+        if total_calls >= self.warn_calls or total_imgs >= 8:
+            return (
+                f"Advisory: {total_calls} plugin tool calls ({total_imgs} images) occurred in the last "
+                f"{int(self.window_seconds)}s. Consider consolidating steps with plugin_batch_call "
+                "or summarizing progress for the user."
+            )
+        return None
+
+
+_CONSUMPTION = _ConsumptionMonitor()
+
+
 def _format_plugin_contents(result: dict[str, Any]) -> list[TextContent | ImageContent]:
     images = result.pop("_images", [])
+    freq_advisory = _CONSUMPTION.record(image_count=len(images))
+    if freq_advisory and "advisory" not in result:
+        result["advisory"] = freq_advisory
     contents: list[TextContent | ImageContent] = [
         TextContent(type="text", text=_json_text(result)),
     ]
@@ -606,7 +665,7 @@ async def plugin_batch_call(
     include_final_image: bool = True,
     max_image_side: int = 1024,
 ) -> list[TextContent | ImageContent]:
-    """Run multiple sequential tool steps on one warm plugin or Blender in a single round-trip (up to 25 steps)."""
+    """Run multiple sequential tool steps on one warm plugin or Blender in a single round-trip (soft warning above COOP_SOFT_STEP_WARNING)."""
     try:
         result = await PLUGIN_MANAGER.batch_call(
             app,
@@ -674,6 +733,7 @@ def main() -> None:
     if oauth_provider:
         print(f"  Client ID  : {oauth_provider.static_client_id}")
     print(f"  Local URL  : http://{args.host}:{args.port}/mcp")
+    print(f"  Settings UI: http://{args.host}:{args.port}/ui")
     print(f"  Public URL : {mcp_public}\n")
 
     uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level.lower())

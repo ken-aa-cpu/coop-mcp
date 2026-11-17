@@ -1,9 +1,10 @@
 [project]
 name = "coop-mcp"
 version = "0.1.0"
-description = "CoopMCP: Sandboxed HTTPS MCP gateway, OAuth 2.1 login, PIN-gated elevation, and lazy stdio plugin router for remote AI clients (Gemini Web & Mobile)"
+description = "CoopMCP: Sandboxed HTTPS MCP gateway, OAuth 2.1 login, PIN-gated elevation, and lazy stdio/HTTP/SSE plugin router for remote AI clients"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.9.0",
@@ -18,4 +19,24 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "httpx2>=2.0.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.setuptools]
+py-modules = [
+    "admin_privilege",
+    "app_registry",
+    "blender_bridge",
+    "config",
+    "files_tools",
+    "mcp_discovery",
+    "media_timeline",
+    "oauth_provider",
+    "plugin_router",
+    "server",
+    "set_oauth_password",
+    "tray_app",
+    "ui_server",
 ]

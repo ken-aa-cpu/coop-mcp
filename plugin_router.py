@@ -1,25 +1,31 @@
-"""Lazy-loaded stdio MCP plugin router & session manager."""
+"""Lazy-loaded stdio / HTTP / SSE MCP plugin router & session manager."""
 
 from __future__ import annotations
 
 import asyncio
 import base64
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
 import logging
+import os
 from pathlib import Path
 import time
 from typing import Any
 
+import httpx2 as httpx
 from mcp import ClientSession, StdioServerParameters
+from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.types import CallToolResult, EmbeddedResource, ImageContent, TextContent
 
 from app_registry import AppPluginSpec, load_plugin_registry, resolve_app_key
 from blender_bridge import BLENDER_TOOLS, BlenderBridgeManager
 from config import APP_DIR
 from files_tools import PathPolicy, compress_image_to_png_base64
+from media_timeline import summarize_filmcraft_sequence, summarize_soundcraft_session
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +85,7 @@ class _PendingCall:
 
 
 class _PluginWorker:
-    """Owns a single stdio_client + ClientSession inside one dedicated asyncio task."""
+    """Owns a single MCP ClientSession (stdio, HTTP, or SSE) inside one dedicated asyncio task."""
 
     def __init__(self, spec: AppPluginSpec, policy: PathPolicy, *, unrestricted: bool = False) -> None:
         self.spec = spec
@@ -152,21 +158,43 @@ class _PluginWorker:
         await self.queue.put(call)
         return await call.future
 
-    async def _run(self) -> None:
+    @asynccontextmanager
+    async def _open_transport(self):
+        if self.spec.transport == "http":
+            headers = self.spec.headers_dict()
+            async with httpx.AsyncClient(headers=headers) as client:
+                async with streamable_http_client(self.spec.url, http_client=client) as streams:
+                    yield streams[0], streams[1]
+            return
+
+        if self.spec.transport == "sse":
+            async with sse_client(self.spec.url, headers=self.spec.headers_dict() or None) as streams:
+                yield streams[0], streams[1]
+            return
+
         cmd = self.spec.build_command(
             list(self.policy.read_roots),
             self.policy.write_root,
             unrestricted=self.unrestricted,
         )
         work_cwd = self.spec.cwd or str(APP_DIR)
+        env = None
+        extra_env = self.spec.env_dict()
+        if extra_env:
+            env = {**os.environ, **extra_env}
         params = StdioServerParameters(
             command=cmd[0],
             args=cmd[1:],
             cwd=work_cwd,
+            env=env,
         )
         logger.info("Starting %s MCP stdio: %s", self.spec.display_name, " ".join(cmd))
+        async with stdio_client(params) as (read_stream, write_stream):
+            yield read_stream, write_stream
+
+    async def _run(self) -> None:
         try:
-            async with stdio_client(params) as (read_stream, write_stream):
+            async with self._open_transport() as (read_stream, write_stream):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
                     self.ready.set()
@@ -213,7 +241,7 @@ class _PluginWorker:
                 if pending is not None and not pending.future.done():
                     pending.future.set_exception(exc)
         finally:
-            logger.info("Stopped %s MCP stdio worker", self.spec.display_name)
+            logger.info("Stopped %s MCP worker", self.spec.display_name)
 
 
 def _normalize_call_result(
@@ -277,9 +305,37 @@ def _normalize_call_result(
         payload["saved_images"] = saved_images
     if other_items:
         payload["other"] = other_items
+    if not is_err:
+        timeline_summary = _maybe_build_timeline_summary(spec.key, tool_name, raw_output, policy)
+        if timeline_summary is not None:
+            payload["timeline_summary"] = timeline_summary
     if compressed_images:
         payload["_images"] = compressed_images
     return payload
+
+
+def _maybe_build_timeline_summary(
+    app_key: str,
+    tool_name: str,
+    raw_output: str,
+    policy: PathPolicy,
+) -> dict[str, Any] | None:
+    if not raw_output.strip():
+        return None
+    try:
+        parsed = json.loads(raw_output)
+    except Exception:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    if app_key == "soundcraft" and tool_name == "inspect_session":
+        return summarize_soundcraft_session(parsed, policy=policy)
+    if app_key == "filmcraft":
+        if tool_name == "sequence_inspect":
+            return summarize_filmcraft_sequence(parsed)
+        if tool_name == "doc_inspect" and isinstance(parsed.get("sequence"), dict):
+            return summarize_filmcraft_sequence(parsed["sequence"], project=parsed.get("project"))
+    return None
 
 
 def _maybe_attach_image_from_text_or_args(
@@ -348,16 +404,21 @@ def _save_preview_image(
 
 
 class PluginSessionManager:
-    """Manages lazy stdio MCP plugin workers, path confinement, and idle cleanup."""
+    """Manages lazy stdio/HTTP/SSE MCP plugin workers, path confinement, and idle cleanup."""
 
     def __init__(
         self,
         policy: PathPolicy,
         idle_timeout_seconds: int = 900,
         registry: dict[str, AppPluginSpec] | None = None,
+        *,
+        soft_step_warning: int = 25,
+        max_batch_steps: int = 100,
     ) -> None:
         self.policy = policy
         self.idle_timeout_seconds = idle_timeout_seconds
+        self.soft_step_warning = max(1, int(soft_step_warning))
+        self.max_batch_steps = max(self.soft_step_warning, int(max_batch_steps))
         self.registry: dict[str, AppPluginSpec] = (
             dict(registry) if registry is not None else load_plugin_registry()
         )
@@ -397,25 +458,39 @@ class PluginSessionManager:
                 logger.info("Closing idle headless Blender worker")
                 await self._blender.stop_headless()
 
-    def _get_worker(self, app_name: str) -> tuple[AppPluginSpec, _PluginWorker, asyncio.Lock]:
+    def _resolve_spec(self, app_name: str, *, require_enabled: bool = True) -> tuple[str, AppPluginSpec]:
         key = resolve_app_key(app_name, self.registry)
         if key is None:
             valid = ", ".join(spec.display_name for spec in self.registry.values())
             raise ValueError(f"Unknown plugin '{app_name}'. Available plugins: {valid}")
         spec = self.registry[key]
-        if not spec.is_installed():
-            raise FileNotFoundError(
-                f"Executable not found for {spec.display_name}: {spec.resolved_executable()}"
+        if require_enabled and not spec.enabled:
+            raise PermissionError(f"Plugin '{spec.display_name}' is currently disabled in Settings.")
+        return key, spec
+
+    def _check_plugin_access(self, spec: AppPluginSpec, *, unrestricted: bool) -> None:
+        if not spec.enabled:
+            raise PermissionError(f"Plugin '{spec.display_name}' is currently disabled in Settings.")
+        if spec.require_admin_unlock and not unrestricted:
+            raise PermissionError(
+                f"Plugin '{spec.display_name}' requires Admin unlock (coop_unlock_system) before execution."
             )
-        if key not in self._workers:
+
+    def _get_worker(self, app_name: str, *, require_enabled: bool = True) -> tuple[AppPluginSpec, _PluginWorker, asyncio.Lock]:
+        key, spec = self._resolve_spec(app_name, require_enabled=require_enabled)
+        if not spec.is_installed():
+            target = spec.url if spec.transport in ("http", "sse") else spec.resolved_executable()
+            raise FileNotFoundError(f"Target not found for {spec.display_name}: {target}")
+        if key not in self._workers or self._workers[key].spec != spec:
             self._workers[key] = _PluginWorker(spec, self.policy)
-            self._locks[key] = asyncio.Lock()
+            self._locks.setdefault(key, asyncio.Lock())
         return spec, self._workers[key], self._locks[key]
 
     async def _ensure_worker_mode(
         self, app_name: str, *, unrestricted: bool = False
     ) -> tuple[AppPluginSpec, _PluginWorker, asyncio.Lock]:
         spec, worker, lock = self._get_worker(app_name)
+        self._check_plugin_access(spec, unrestricted=unrestricted)
         if worker.unrestricted != unrestricted:
             async with lock:
                 if worker.is_running:
@@ -441,9 +516,13 @@ class PluginSessionManager:
                 "name": spec.display_name,
                 "category": spec.category,
                 "description": spec.description,
+                "transport": spec.transport,
+                "enabled": spec.enabled,
+                "require_admin_unlock": spec.require_admin_unlock,
                 "formats": list(spec.formats),
                 "installed": spec.is_installed(),
                 "running": running,
+                "source": spec.source,
             })
         return {
             "read_roots": [str(r) for r in self.policy.read_roots],
@@ -453,7 +532,8 @@ class PluginSessionManager:
         }
 
     async def list_tools(self, app_name: str, query: str = "") -> dict[str, Any]:
-        if resolve_app_key(app_name, self.registry) == "blender":
+        key, spec = self._resolve_spec(app_name)
+        if key == "blender":
             q = (query or "").strip().lower()
             filtered = [
                 t for t in BLENDER_TOOLS
@@ -481,6 +561,8 @@ class PluginSessionManager:
         ]
         return {
             "app": spec.display_name,
+            "transport": spec.transport,
+            "require_admin_unlock": spec.require_admin_unlock,
             "read_roots": [str(r) for r in self.policy.read_roots],
             "write_output_root": str(self.policy.write_root),
             "total_tools": len(tools),
@@ -498,9 +580,9 @@ class PluginSessionManager:
         max_image_side: int = 1024,
         unrestricted: bool = False,
     ) -> dict[str, Any]:
-        key = resolve_app_key(app_name, self.registry)
+        key, spec = self._resolve_spec(app_name)
+        self._check_plugin_access(spec, unrestricted=unrestricted)
         if key == "blender":
-            spec = self.registry["blender"]
             args = dict(arguments or {})
             sanitized_args = self._enforce_path_arguments(spec, tool_name, args, unrestricted=unrestricted)
             return await self._blender.call_tool(
@@ -533,17 +615,17 @@ class PluginSessionManager:
         max_image_side: int = 1024,
         unrestricted: bool = False,
     ) -> dict[str, Any]:
-        """Execute multiple sequential tool calls on one warm plugin or Blender in a single MCP request."""
+        """Execute sequential tool calls on one warm plugin or Blender, emitting soft consumption advisories."""
         if not calls:
             raise ValueError("calls must be a non-empty list of {tool_name, arguments} steps.")
-        if len(calls) > 25:
-            raise ValueError("Maximum 25 steps per plugin_batch_call.")
+        if len(calls) > self.max_batch_steps:
+            raise ValueError(
+                f"Maximum safety ceiling is {self.max_batch_steps} steps per plugin_batch_call "
+                f"(received {len(calls)}). Split into smaller batches."
+            )
 
-        key = resolve_app_key(app_name, self.registry)
-        if key is None:
-            valid = ", ".join(spec.display_name for spec in self.registry.values())
-            raise ValueError(f"Unknown plugin '{app_name}'. Available plugins: {valid}")
-        spec = self.registry[key]
+        key, spec = self._resolve_spec(app_name)
+        self._check_plugin_access(spec, unrestricted=unrestricted)
 
         step_results: list[dict[str, Any]] = []
         final_images: list[dict[str, Any]] = []
@@ -612,7 +694,7 @@ class PluginSessionManager:
                     )
                 )
 
-        return {
+        payload: dict[str, Any] = {
             "app": spec.display_name,
             "total_steps": len(calls),
             "completed_steps": len(step_results),
@@ -620,6 +702,12 @@ class PluginSessionManager:
             "steps": step_results,
             "_images": final_images,
         }
+        if len(calls) > self.soft_step_warning:
+            payload["advisory"] = (
+                f"Notice: this batch executed {len(calls)} steps (above the recommended {self.soft_step_warning} steps). "
+                "Please monitor token and compute consumption, consolidate redundant steps, and summarize progress for the user."
+            )
+        return payload
 
     async def close_app(self, app_name: str = "") -> dict[str, Any]:
         if not app_name.strip():
@@ -632,7 +720,8 @@ class PluginSessionManager:
                 closed.append("Blender (headless)")
             return {"closed": closed}
 
-        if resolve_app_key(app_name, self.registry) == "blender":
+        key, spec = self._resolve_spec(app_name, require_enabled=False)
+        if key == "blender":
             stopped = await self._blender.stop_headless()
             if stopped:
                 return {"app": "Blender", "status": "headless_closed"}
@@ -640,7 +729,10 @@ class PluginSessionManager:
                 return {"app": "Blender", "status": "external_gui_app_left_running"}
             return {"app": "Blender", "status": "not_running"}
 
-        spec, worker, lock = self._get_worker(app_name)
+        worker = self._workers.get(key)
+        if worker is None:
+            return {"app": spec.display_name, "was_running": False, "status": "closed"}
+        lock = self._locks.setdefault(key, asyncio.Lock())
         async with lock:
             was_running = worker.is_running
             await worker.stop()

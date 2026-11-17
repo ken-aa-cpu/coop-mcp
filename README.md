@@ -11,11 +11,20 @@ CoopMCP keeps your AI assistant safely inside the "coop" (a read/write path sand
 - **Two-Tier Sandbox & 1-Hour PIN Elevation**:
   - **Locked (Default)**: Reads confined to `COOP_READ_ROOTS`, writes confined to `COOP_WRITE_ROOT`, sensitive files (`.env`, keys) blocked, terminal disabled.
   - **Admin Unlocked (PIN-gated, max 1h)**: Non-renewable `admin_token` with instant epoch-based revocation from the system tray.
-- **Lazy Stdio Plugin Router (`apps.json`)**: Starts local `stdio` MCP tools on demand (`plugin_list_tools`, `plugin_call_tool`, `plugin_batch_call`) and shuts them down after idle timeout.
+- **Lazy Stdio / HTTP / SSE Plugin Router (`apps.json`)**: Starts local `stdio` MCP tools on demand (`plugin_list_tools`, `plugin_call_tool`, `plugin_batch_call`) or bridges local `http`/`sse` MCP endpoints, with soft consumption advisories above `COOP_SOFT_STEP_WARNING` (no forced crash) and automatic idle shutdown.
+- **Opt-In Local MCP Discovery & Trilingual Settings UI (`zh-Hant` / `en` / `ja`)**: Loopback-only Web Dashboard (`/ui`, opened from the tray icon) to configure sandbox paths, credentials, fixed-domain tunnels, and selectively import existing MCP configs from Claude Desktop, Cursor, Windsurf, VS Code, or Gemini.
 - **Hardened Blender Bridge (`blender_addon/coop_blender_mcp.py`)**: Loopback TCP bridge with optional token auth, AST + restricted-builtins sandbox for `execute_code`, auto-headless fallback, and automatic PNG `ImageContent` preview compression.
-- **Windows System Tray Controller (`tray_app.py`)**: Chick mascot icon, tunnel supervisor (`cloudflared`, `ssh` reverse tunnel, or `ngrok`), quick-copy MCP URL, and one-click admin token revocation.
+- **Windows System Tray Controller (`tray_app.py`)**: Chick mascot icon, tunnel supervisor (`cloudflared`, `ssh` reverse tunnel, or `ngrok`), quick-copy MCP URL, Settings UI launcher, and one-click admin token revocation.
 
 ## Quick Start
+
+### Option A: Double-Click on Windows (No CLI Required)
+
+1. Double-click **`CoopMCP.bat`** (auto-installs `.venv` via `uv` on first run, starts the Chick system tray icon, and opens the trilingual **Settings UI** in your browser).
+2. In the Settings UI (`Sandbox & Security`), set your OAuth login password and Admin PIN, then save and restart the gateway from the tray menu.
+3. Anytime later, double-click **`Open_Settings_UI.bat`** (or right-click the Chick tray icon → **Open Settings UI**).
+
+### Option B: PowerShell / CLI
 
 ```powershell
 # 1. Install dependencies (Python >= 3.11)
@@ -38,9 +47,16 @@ uv run pythonw tray_app.py
 2. Copy the endpoint URL (`https://your-domain/mcp`) from the tray menu.
 3. Add it in **Gemini Settings → Connected Apps / MCP Servers**. When prompted, enter the password you configured in step 3.
 
-### Adding Local Plugins (`apps.json`)
+### Adding Local Plugins (`apps.json`) & Recommended ArtCraft Ecosystem
 
-Copy [apps.example.json](apps.example.json) to `apps.json` and add any `stdio` MCP servers (Python `uvx`, Node `npx`, or local CLI executables supporting `mcp`). CoopMCP will launch them lazily on first tool call and reap idle workers automatically.
+Copy [apps.example.json](apps.example.json) to `apps.json`, or use the Settings UI (**Plugins & Local MCPs → Discover Local MCPs**) to scan and import existing configs from Claude Desktop, Cursor, Windsurf, VS Code, or Gemini.
+
+#### Recommended Open-Source Suite: [ArtCraft](https://getartcraft.com/)
+
+CoopMCP pairs cleanly with **[ArtCraft](https://getartcraft.com/)** — an open-source, pure-Rust creative and office software suite (`WordCraft`, `DeckCraft`, `GridCraft`, `PhotoCraft`, `VectorCraft`, `FigCraft`, `AniCraft`, `SoundCraft`, `FilmCraft`, `CADCraft`, `SolidCraft`, etc.) that ships with built-in CLI MCP servers (`*-cli mcp`).
+
+- If ArtCraft is installed on `PATH` or in a local folder, run **Folder Scan** in the Settings UI on your ArtCraft directory.
+- CoopMCP uses [presets/artcraft.json](presets/artcraft.json) to automatically recognize installed ArtCraft binaries and apply each app's native sandbox flags (`--automation-read-root`, `--allow-path`, `--headless`, etc.), plus seconds-based timeline/waveform summaries for SoundCraft & FilmCraft.
 
 ## Running Tests
 
@@ -48,9 +64,10 @@ Copy [apps.example.json](apps.example.json) to `apps.json` and add any `stdio` M
 uv run python tests/run_all.py
 ```
 
-## Architecture & Rust Core Evaluation
+## Architecture, Fixed Domains & Security
 
-See [docs/RUST_CORE_EVALUATION.md](docs/RUST_CORE_EVALUATION.md) for notes on the **Rust Core + Python Plugin** split.
+- [docs/TUNNEL_AND_SECURITY.md](docs/TUNNEL_AND_SECURITY.md): Guide for permanent fixed HTTPS URLs (Tailscale Funnel, ngrok static domain, Cloudflare Named Tunnel, SSH+VPS) and security guardrails.
+- [docs/RUST_CORE_EVALUATION.md](docs/RUST_CORE_EVALUATION.md): Notes on splitting into **Rust Core + Python Stdio Plugins**.
 
 ## License
 

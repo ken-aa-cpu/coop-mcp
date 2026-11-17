@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 import logging
+import os
 from pathlib import Path
 import re
 import secrets
@@ -226,17 +227,20 @@ class AdminPrivilegeManager:
         if not work_dir.exists() or not work_dir.is_dir():
             raise FileNotFoundError(f"Working directory not found: {work_dir}")
 
-        sh = (shell or "powershell").strip().lower()
+        sh = (shell or ("powershell" if os.name == "nt" else "sh")).strip().lower()
         if sh in ("powershell", "pwsh", "ps"):
             utf8_prefix = (
                 "$OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
                 "[Console]::OutputEncoding = $OutputEncoding; "
             )
-            argv = ["powershell", "-NoProfile", "-NonInteractive", "-Command", utf8_prefix + cmd_text]
+            exe = "powershell" if os.name == "nt" else "pwsh"
+            argv = [exe, "-NoProfile", "-NonInteractive", "-Command", utf8_prefix + cmd_text]
         elif sh == "cmd":
             argv = ["cmd", "/c", cmd_text]
+        elif sh in ("sh", "bash"):
+            argv = [sh, "-c", cmd_text]
         else:
-            raise ValueError("shell must be 'powershell' or 'cmd'.")
+            raise ValueError("shell must be 'powershell', 'cmd', 'sh', or 'bash'.")
 
         timeout = max(1, min(int(timeout_seconds), 120))
         proc = await asyncio.create_subprocess_exec(

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CoopMCP Settings</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --panel: #131c31;
+    --card: #19243d;
+    --border: #2a3958;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --gold: #facc15;
+    --gold-dark: #eab308;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand h1 { margin: 0; font-size: 1.2rem; color: var(--gold); }
+  .brand span { font-size: 0.8rem; color: var(--muted); }
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  select, input, textarea {
+    background: #0b1324;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    font-family: inherit;
+  }
+  input, textarea { width: 100%; }
+  button {
+    border: 0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    background: var(--gold-dark);
+    color: #0f172a;
+  }
+  button:hover { background: var(--gold); }
+  button.sec { background: #24324d; color: var(--text); border: 1px solid var(--border); }
+  button.sec:hover { background: #2e4062; }
+  button.danger { background: rgba(239,68,68,.18); color: #fca5a5; border: 1px solid rgba(239,68,68,.5); }
+  button.danger:hover { background: rgba(239,68,68,.3); }
+  button.sm { padding: 5px 10px; font-size: 0.8rem; }
+  main { max-width: 1120px; margin: 0 auto; padding: 20px 24px 60px; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tab { background: var(--panel); color: var(--muted); border: 1px solid var(--border); }
+  .tab.active { background: var(--gold-dark); color: #0f172a; border-color: var(--gold-dark); }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .card h2, .card h3 { margin: 0 0 10px; font-size: 1.02rem; color: var(--gold); }
+  .muted { color: var(--muted); font-size: 0.85rem; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600;
+    background: #1e293b; border: 1px solid var(--border);
+  }
+  .pill.ok { color: #86efac; border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.12); }
+  .pill.warn { color: #fde047; border-color: rgba(250,204,21,.45); background: rgba(250,204,21,.12); }
+  .pill.bad { color: #fca5a5; border-color: rgba(239,68,68,.45); background: rgba(239,68,68,.12); }
+  .banner {
+    display: none; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;
+    background: rgba(250,204,21,.12); border: 1px solid rgba(250,204,21,.45); color: #fef08a;
+  }
+  .toast {
+    position: fixed; right: 20px; bottom: 20px; z-index: 50;
+    background: #0f172a; border: 1px solid var(--gold-dark); color: var(--text);
+    padding: 10px 16px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    display: none; max-width: 360px;
+  }
+  .list-item {
+    border: 1px solid var(--border); background: #10192d; border-radius: 10px;
+    padding: 12px; margin-bottom: 10px;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.84rem; word-break: break-all; }
+  .hidden { display: none !important; }
+  .tunnel-cards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 16px; }
+  .tcard { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: #10192d; cursor: pointer; }
+  .tcard.selected { border-color: var(--gold); background: rgba(250,204,21,.08); }
+  pre { background: #091020; border: 1px solid var(--border); padding: 10px; border-radius: 8px; overflow: auto; max-height: 260px; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span style="font-size:1.5rem">🐤</span>
+    <div>
+      <h1>CoopMCP</h1>
+      <span id="hdr-sub">Sandboxed Local MCP Gateway</span>
+    </div>
+  </div>
+  <div class="toolbar">
+    <span id="sandbox-pill" class="pill ok">🔒 Sandbox Protected</span>
+    <select id="lang-sel" aria-label="Language">
+      <option value="zh-Hant">繁體中文</option>
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+    <button id="btn-revoke-top" class="danger sm">Lock &amp; Revoke</button>
+  </div>
+</header>
+
+<main>
+  <div id="auth-gate" class="card hidden" style="max-width:460px;margin:40px auto;">
+    <h2 id="ag-title">Local Gateway Key Required</h2>
+    <p id="ag-desc" class="muted">Enter MCP_SECRET_KEY from .env (or launch from the Chick tray icon).</p>
+    <div class="field">
+      <label for="local-key-input">MCP_SECRET_KEY</label>
+      <input id="local-key-input" type="password" placeholder="coop_key_...">
+    </div>
+    <button id="btn-auth-unlock">Unlock Settings UI</button>
+  </div>
+
+  <div id="app-shell" class="hidden">
+    <div id="restart-banner" class="banner"></div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="overview" id="tab-overview">Overview</button>
+      <button class="tab" data-tab="security" id="tab-security">Sandbox &amp; Security</button>
+      <button class="tab" data-tab="tunnel" id="tab-tunnel">Tunnel &amp; Domain</button>
+      <button class="tab" data-tab="plugins" id="tab-plugins">Plugins &amp; Local MCPs</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section id="sec-overview" class="tab-sec">
+      <div class="grid">
+        <div class="card">
+          <h2 id="ov-conn-title">Remote AI Connection</h2>
+          <div class="field">
+            <label id="ov-url-lbl">MCP Endpoint URL</label>
+            <div class="row">
+              <input id="ov-mcp-url" class="mono" readonly>
+              <button id="btn-copy-url" class="sec sm">Copy</button>
+            </div>
+          </div>
+          <div class="field">
+            <label id="ov-cid-lbl">OAuth Client ID</label>
+            <div class="row">
+              <input id="ov-client-id" class="mono" readonly>
+              <button id="btn-copy-cid" class="sec sm">Copy</button>
+            </div>
+          </div>
+          <p id="ov-hint" class="muted"></p>
+        </div>
+
+        <div class="card">
+          <h2 id="ov-stat-title">Gateway Status</h2>
+          <div id="ov-status-pills" class="row" style="margin-bottom:12px;"></div>
+          <div class="muted" id="ov-paths-summary"></div>
+          <div style="margin-top:14px;" class="row">
+            <button id="btn-refresh" class="sec sm">Refresh</button>
+            <button id="btn-revoke" class="danger sm">Lock Sandbox &amp; Revoke Tokens</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SANDBOX & SECURITY -->
+    <section id="sec-security" class="tab-sec hidden">
+      <div class="grid">
+        <div class="card">
+          <h2 id="sec-paths-title">Sandbox Paths &amp; Step Limits</h2>
+          <div class="field">
+            <label id="lbl-read-roots">Read Roots (comma-separated)</label>
+            <input id="cfg-read-roots">
+          </div>
+          <div class="field">
+            <label id="lbl-write-root">Write / Output Root</label>
+            <input id="cfg-write-root">
+          </div>
+          <div class="field">
+            <label id="lbl-cloud-dir">CloudSync Directory</label>
+            <input id="cfg-cloud-dir">
+          </div>
+          <div class="field">
+            <label id="lbl-mirror-dir">Optional Cloud Mirror Directory</label>
+            <input id="cfg-mirror-dir" placeholder="Optional">
+          </div>
+          <div class="row">
+            <div class="field" style="flex:1">
+              <label id="lbl-soft-steps">Soft Step Advisory Threshold</label>
+              <input id="cfg-soft-steps" type="number" min="1" max="500">
+            </div>
+            <div class="field" style="flex:1">
+              <label id="lbl-max-steps">Max Batch Safety Ceiling</label>
+              <input id="cfg-max-steps" type="number" min="10" max="1000">
+            </div>
+            <div class="field" style="flex:1">
+              <label id="lbl-idle">Plugin Idle Timeout (s)</label>
+              <input id="cfg-idle" type="number" min="60" max="86400">
+            </div>
+          </div>
+          <button id="btn-save-sandbox">Save Sandbox Settings</button>
+        </div>
+
+        <div class="card">
+          <h2 id="sec-auth-title">OAuth Login &amp; Admin PIN</h2>
+          <div class="field">
+            <label><input id="cfg-require-oauth" type="checkbox" style="width:auto;margin-right:6px;"> <span id="lbl-req-oauth">Require OAuth 2.1 + PKCE (Recommended for public tunnels)</span></label>
+          </div>
+          <div class="field">
+            <label id="lbl-extra-hosts">Extra Allowed Redirect Hosts (comma-separated)</label>
+            <input id="cfg-extra-hosts" placeholder="claude.ai, chatgpt.com">
+          </div>
+          <div class="field">
+            <label id="lbl-new-pw">New OAuth Login Password (min 8 chars; leave blank to keep)</label>
+            <input id="cfg-new-pw" type="password" placeholder="••••••••">
+          </div>
+          <div class="field">
+            <label id="lbl-new-pin">New Admin Unlock PIN (min 4 chars; leave blank to keep)</label>
+            <input id="cfg-new-pin" type="password" placeholder="••••">
+          </div>
+          <button id="btn-save-auth">Update Credentials</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TUNNEL & FIXED DOMAIN -->
+    <section id="sec-tunnel" class="tab-sec hidden">
+      <div class="card" style="margin-bottom:16px;">
+        <h2 id="tun-title">Tunnel &amp; Fixed Domain Mode</h2>
+        <p id="tun-desc" class="muted"></p>
+        <div class="tunnel-cards" id="tun-cards">
+          <div class="tcard" data-mode="cloudflared">
+            <strong>⚡ Quick Tunnel (cloudflared)</strong>
+            <div class="muted" id="tc-cf">Zero-account trial. Random URL changes on restart.</div>
+          </div>
+          <div class="tcard" data-mode="ngrok">
+            <strong>📌 Fixed Free Domain (ngrok)</strong>
+            <div class="muted" id="tc-ng">Free static domain, no VPS or home static IP needed.</div>
+          </div>
+          <div class="tcard" data-mode="ssh">
+            <strong>🏰 Own VPS / SSH Tunnel</strong>
+            <div class="muted" id="tc-ssh">Fixed domain via your own VPS + Caddy/Nginx.</div>
+          </div>
+          <div class="tcard" data-mode="none">
+            <strong>🏠 Local / External Managed</strong>
+            <div class="muted" id="tc-none">Use Tailscale Funnel, Cloudflare Named Tunnel, or LAN externally.</div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <div class="field">
+              <label id="lbl-tun-mode">Tunnel Mode</label>
+              <select id="cfg-tunnel-mode" style="width:100%;">
+                <option value="cloudflared">cloudflared</option>
+                <option value="ngrok">ngrok</option>
+                <option value="ssh">ssh</option>
+                <option value="none">none (Tailscale Funnel / Named Tunnel / Local)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label id="lbl-pub-url">Public HTTPS Base URL</label>
+              <input id="cfg-public-url" placeholder="https://your-host.example.com">
+            </div>
+          </div>
+          <div id="ssh-fields">
+            <div class="field"><label>SSH Host</label><input id="cfg-ssh-host"></div>
+            <div class="row">
+              <div class="field" style="flex:1"><label>SSH User</label><input id="cfg-ssh-user"></div>
+              <div class="field" style="flex:1"><label>SSH Remote Port</label><input id="cfg-ssh-rport" type="number"></div>
+            </div>
+            <div class="field"><label>SSH Key Path</label><input id="cfg-ssh-key"></div>
+          </div>
+        </div>
+        <button id="btn-save-tunnel">Save Tunnel Settings</button>
+      </div>
+    </section>
+
+    <!-- PLUGINS & LOCAL MCP DISCOVERY -->
+    <section id="sec-plugins" class="tab-sec hidden">
+      <div class="grid" style="margin-bottom:16px;">
+        <div class="card">
+          <h2 id="pl-cur-title">Configured Plugins</h2>
+          <div id="plugins-list"></div>
+        </div>
+
+        <div class="card">
+          <h2 id="pl-scan-title">Discover Local MCPs (Opt-In)</h2>
+          <p id="pl-scan-desc" class="muted"></p>
+          <div class="field">
+            <label id="lbl-scan-dir">Optional Folder Scan (.mcp.json or *-cli.exe)</label>
+            <div class="row">
+              <input id="scan-folder-input" placeholder="C:\Tools" style="flex:1">
+              <button id="btn-discover" class="sm">Scan</button>
+            </div>
+          </div>
+          <div id="discover-results" class="muted"></div>
+          <div id="discover-actions" class="hidden" style="margin-top:10px;">
+            <button id="btn-import-selected" class="sm">Import Selected</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 id="pl-add-title">Add Plugin Manually (stdio / HTTP / SSE)</h3>
+        <div class="grid">
+          <div>
+            <div class="field"><label>Key</label><input id="add-key" placeholder="my-tool"></div>
+            <div class="field"><label>Display Name</label><input id="add-name" placeholder="My Tool"></div>
+            <div class="field">
+              <label>Transport</label>
+              <select id="add-transport" style="width:100%">
+                <option value="stdio">stdio</option>
+                <option value="http">http (Streamable HTTP)</option>
+                <option value="sse">sse</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="field" id="add-cmd-wrap"><label>Command &amp; Args (space-separated)</label><input id="add-cmd" placeholder="uvx mcp-server-sqlite --db-path ./workspace/sample.db"></div>
+            <div class="field hidden" id="add-url-wrap"><label>Local MCP URL</label><input id="add-url" placeholder="http://127.0.0.1:3000/mcp"></div>
+            <div class="field"><label><input id="add-admin" type="checkbox" style="width:auto;margin-right:6px;"> <span id="lbl-add-admin">Require Admin PIN Unlock</span></label></div>
+            <button id="btn-add-plugin">Add Plugin</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tools-inspector" class="card hidden" style="margin-top:16px;">
+        <h3 id="insp-title">Plugin Tools</h3>
+        <pre id="insp-pre"></pre>
+      </div>
+    </section>
+  </div>
+</main>
+<div id="toast" class="toast"></div>
+
+<script>
+const I18N = {
+  "en": {
+    hdrSub: "Sandboxed Local MCP Gateway",
+    revokeTop: "Lock & Revoke",
+    agTitle: "Local Gateway Key Required",
+    agDesc: "Enter MCP_SECRET_KEY from .env (or open from the Chick system tray icon).",
+    agBtn: "Unlock Settings UI",
+    tabs: { overview: "Overview", security: "Sandbox & Security", tunnel: "Tunnel & Domain", plugins: "Plugins & Local MCPs" },
+    ovConn: "Remote AI Connection",
+    ovUrl: "MCP Endpoint URL",
+    ovCid: "OAuth Client ID",
+    ovHint: "Paste the MCP Endpoint URL into Gemini Settings → Connected Apps. Leave Client Secret empty if using Dynamic Client Registration or standard OAuth flow.",
+    ovStat: "Gateway Status",
+    refresh: "Refresh",
+    revoke: "Lock Sandbox & Revoke Tokens",
+    copy: "Copy",
+    secPaths: "Sandbox Paths & Step Limits",
+    readRoots: "Read Roots (comma-separated)",
+    writeRoot: "Write / Output Root",
+    cloudDir: "CloudSync Directory",
+    mirrorDir: "Optional Cloud Mirror Directory",
+    softSteps: "Soft Step Advisory Threshold",
+    maxSteps: "Max Batch Safety Ceiling",
+    idle: "Plugin Idle Timeout (s)",
+    saveSandbox: "Save Sandbox Settings",
+    secAuth: "OAuth Login & Admin PIN",
+    reqOauth: "Require OAuth 2.1 + PKCE (Recommended for public tunnels)",
+    extraHosts: "Extra Allowed Redirect Hosts (comma-separated)",
+    newPw: "New OAuth Login Password (min 8 chars; leave blank to keep)",
+    newPin: "New Admin Unlock PIN (min 4 chars; leave blank to keep)",
+    saveAuth: "Update Credentials",
+    tunTitle: "Tunnel & Fixed Domain Mode",
+    tunDesc: "Outbound tunnels work behind dynamic home IPs and CGNAT without router port forwarding. Use Tailscale Funnel, ngrok static domain, Cloudflare Named Tunnel, or VPS SSH for a permanent URL.",
+    tcCf: "Zero-account trial. Random URL changes on restart.",
+    tcNg: "Free static domain, no VPS or home static IP needed.",
+    tcSsh: "Fixed domain via your own VPS + Caddy/Nginx.",
+    tcNone: "Use Tailscale Funnel, Cloudflare Named Tunnel, or LAN externally.",
+    tunMode: "Tunnel Mode",
+    pubUrl: "Public HTTPS Base URL",
+    saveTunnel: "Save Tunnel Settings",
+    plCur: "Configured Plugins",
+    plScan: "Discover Local MCPs (Opt-In)",
+    plScanDesc: "Scans existing AI client configs (Claude Desktop, Cursor, Windsurf, VS Code, Gemini) and starter templates. Nothing is exposed until you check and import it.",
+    scanDir: "Optional Folder Scan (.mcp.json or *-cli.exe)",
+    scan: "Scan",
+    importSel: "Import Selected",
+    plAdd: "Add Plugin Manually (stdio / HTTP / SSE)",
+    addAdmin: "Require Admin PIN Unlock",
+    addBtn: "Add Plugin",
+    sandboxLocked: "🔒 Sandbox Protected",
+    sandboxUnlocked: "⚠️ Admin Unlocked",
+    restartBanner: "Settings saved. Restart the gateway from the tray icon to apply URL/tunnel/OAuth changes.",
+    savedMsg: "Settings saved.",
+    copiedMsg: "Copied to clipboard.",
+    revokedMsg: "Sandbox locked and all admin tokens revoked.",
+    importedMsg: "Imported selected plugins.",
+    noDiscovered: "Click Scan to search local AI configs and templates.",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    adminReq: "PIN Required",
+    testTools: "Inspect Tools",
+    stopBtn: "Stop",
+    delBtn: "Delete",
+  },
+  "zh-Hant": {
+    hdrSub: "本機安全沙盒與外掛閘道",
+    revokeTop: "上鎖並作廢憑證",
+    agTitle: "需要本機安全金鑰",
+    agDesc: "請輸入 .env 中的 MCP_SECRET_KEY（或直接從小雞系統匣點選「開啟設定介面」）。",
+    agBtn: "解鎖設定介面",
+    tabs: { overview: "總覽與連線", security: "沙盒與安全", tunnel: "通道與固定網址", plugins: "外掛與本機 MCP 掃描" },
+    ovConn: "遠端 AI 連線資訊",
+    ovUrl: "MCP 端點網址",
+    ovCid: "OAuth 用戶端 ID",
+    ovHint: "將上方的 MCP 端點網址貼到 Gemini 設定 → 已連結的應用程式。若透過標準 OAuth 登入，用戶端密鑰可留空。",
+    ovStat: "閘道運行狀態",
+    refresh: "重新整理",
+    revoke: "立即上鎖並作廢所有 AI 憑證",
+    copy: "複製",
+    secPaths: "沙盒路徑與步驟消耗提醒",
+    readRoots: "允許唯讀目錄（逗號分隔）",
+    writeRoot: "允許寫入／輸出目錄",
+    cloudDir: "CloudSync 同步目錄",
+    mirrorDir: "額外雲端鏡像目錄（選填）",
+    softSteps: "步驟過多軟提示門檻",
+    maxSteps: "單批最大安全上限",
+    idle: "外掛閒置自動關閉秒數",
+    saveSandbox: "儲存沙盒設定",
+    secAuth: "OAuth 授權密碼與 Admin PIN",
+    reqOauth: "強制啟用 OAuth 2.1 + PKCE（公開網址強烈建議開啟）",
+    extraHosts: "額外允許的 OAuth 回呼網域（逗號分隔）",
+    newPw: "新 OAuth 登入密碼（至少 8 字元；不改請留空）",
+    newPin: "新 Admin 解鎖 PIN（至少 4 字元；不改請留空）",
+    saveAuth: "更新密碼／憑證",
+    tunTitle: "反向通道與固定網址模式",
+    tunDesc: "反向通道由電腦主動向外連出，家裡是浮動 IP 或位於 CGNAT 後方也能正常使用。想拿到永久固定網址，建議選用 Tailscale Funnel、ngrok 免費靜態網域、Cloudflare Named Tunnel 或自架 VPS。",
+    tcCf: "免帳號快速試用，但重啟後隨機網址會更換。",
+    tcNg: "免費固定子網域，免租 VPS、免申請家裡固定 IP。",
+    tcSsh: "透過自己的 VPS + Caddy/Nginx 提供固定網域。",
+    tcNone: "由外部啟動 Tailscale Funnel、Cloudflare 固定通道或僅限本機。",
+    tunMode: "通道模式",
+    pubUrl: "對外公開 HTTPS 網址",
+    saveTunnel: "儲存通道設定",
+    plCur: "已設定的外掛清單",
+    plScan: "掃描本機 MCP（打勾才匯入）",
+    plScanDesc: "唯讀掃描本機現有 AI 工具設定檔（Claude Desktop、Cursor、Windsurf、VS Code、Gemini）與常用範本；必須由你勾選匯入才會啟用。",
+    scanDir: "選填：掃描指定資料夾（.mcp.json 或 *-cli.exe）",
+    scan: "開始掃描",
+    importSel: "匯入勾選項目",
+    plAdd: "手動新增外掛（stdio / HTTP / SSE）",
+    addAdmin: "需 Admin PIN 解鎖後才允許呼叫",
+    addBtn: "新增外掛",
+    sandboxLocked: "🔒 沙盒保護中",
+    sandboxUnlocked: "⚠️ 已解鎖全機",
+    restartBanner: "設定已儲存。若修改了網址、通道或 OAuth 設定，請從系統匣「重新啟動服務」生效。",
+    savedMsg: "設定已儲存。",
+    copiedMsg: "已複製到剪貼簿。",
+    revokedMsg: "已重新鎖定沙盒並作廢先前的 Admin 憑證。",
+    importedMsg: "已匯入勾選的外掛。",
+    noDiscovered: "點擊「開始掃描」來搜尋本機 MCP 設定與範本。",
+    enabled: "已啟用",
+    disabled: "已停用",
+    adminReq: "需 PIN 解鎖",
+    testTools: "查看工具",
+    stopBtn: "停止",
+    delBtn: "刪除",
+  },
+  "ja": {
+    hdrSub: "サンドボックス対応ローカル MCP ゲートウェイ",
+    revokeTop: "ロック＆トークン失効",
+    agTitle: "ローカルキーが必要です",
+    agDesc: ".env の MCP_SECRET_KEY を入力するか、トレイアイコンから開いてください。",
+    agBtn: "設定画面を開く",
+    tabs: { overview: "概要", security: "サンドボックス・認証", tunnel: "トンネル・固定URL", plugins: "プラグイン・ローカル検出" },
+    ovConn: "リモート AI 接続情報",
+    ovUrl: "MCP エンドポイント URL",
+    ovCid: "OAuth クライアント ID",
+    ovHint: "上の MCP URL を Gemini 設定の連携アプリに登録してください。",
+    ovStat: "ゲートウェイ状態",
+    refresh: "更新",
+    revoke: "サンドボックスを再ロックしてトークン失効",
+    copy: "コピー",
+    secPaths: "サンドボックスパス・ステップ上限",
+    readRoots: "読み取り許可フォルダ（カンマ区切り）",
+    writeRoot: "書き込み／出力フォルダ",
+    cloudDir: "CloudSync フォルダ",
+    mirrorDir: "クラウドミラー先（任意）",
+    softSteps: "ステップ消費警告のしきい値",
+    maxSteps: "バッチ最大安全上限",
+    idle: "アイドル自動停止（秒）",
+    saveSandbox: "サンドボックス設定を保存",
+    secAuth: "OAuth パスワード・Admin PIN",
+    reqOauth: "OAuth 2.1 + PKCE を必須にする（公開時は推奨）",
+    extraHosts: "追加許可リダイレクトホスト（カンマ区切り）",
+    newPw: "新しい OAuth パスワード（8文字以上・空欄で維持）",
+    newPin: "新しい Admin PIN（4文字以上・空欄で維持）",
+    saveAuth: "認証情報を更新",
+    tunTitle: "トンネル・固定ドメイン設定",
+    tunDesc: "アウトバウンドトンネルなら動的IPやCGNAT環境でもルーター開放なしで接続できます。固定URLには Tailscale Funnel、ngrok 静的ドメイン、Cloudflare Named Tunnel などが使えます。",
+    tcCf: "アカウント不要のお試し用。再起動ごとにURLが変わります。",
+    tcNg: "無料の固定サブドメイン。VPS・固定IP不要。",
+    tcSsh: "自前 VPS + Caddy/Nginx による固定ドメイン。",
+    tcNone: "Tailscale Funnel や Cloudflare 固定トンネル等を外部起動。",
+    tunMode: "トンネル方式",
+    pubUrl: "公開 HTTPS ベース URL",
+    saveTunnel: "トンネル設定を保存",
+    plCur: "登録済みプラグイン",
+    plScan: "ローカル MCP 検出（オプトイン）",
+    plScanDesc: "Claude Desktop / Cursor / Windsurf / VS Code / Gemini 等の設定とテンプレートを読み取り専用でスキャンします。チェックして取り込むまで公開されません。",
+    scanDir: "任意フォルダスキャン（.mcp.json / *-cli.exe）",
+    scan: "スキャン",
+    importSel: "選択項目をインポート",
+    plAdd: "プラグインを手動追加（stdio / HTTP / SSE）",
+    addAdmin: "実行に Admin PIN 解除を必須にする",
+    addBtn: "プラグイン追加",
+    sandboxLocked: "🔒 サンドボックス保護中",
+    sandboxUnlocked: "⚠️ Admin 解除中",
+    restartBanner: "設定を保存しました。URL・トンネル・OAuth 変更はトレイから再起動して反映してください。",
+    savedMsg: "保存しました。",
+    copiedMsg: "クリップボードにコピーしました。",
+    revokedMsg: "サンドボックスをロックし、トークンを失効させました。",
+    importedMsg: "選択したプラグインをインポートしました。",
+    noDiscovered: "「スキャン」を押してローカルの MCP 設定を検索します。",
+    enabled: "有効",
+    disabled: "無効",
+    adminReq: "PIN必須",
+    testTools: "ツール一覧",
+    stopBtn: "停止",
+    delBtn: "削除",
+  }
+};
+
+let LANG = localStorage.getItem("coop_lang") || (navigator.language.startsWith("zh") ? "zh-Hant" : (navigator.language.startsWith("ja") ? "ja" : "en"));
+if (!I18N[LANG]) LANG = "en";
+let LOCAL_KEY = "";
+let LAST_DISCOVERY = [];
+let CURRENT_STATE = null;
+
+function t(k) { return (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k; }
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(window._tmo);
+  window._tmo = setTimeout(() => { el.style.display = "none"; }, 3200);
+}
+
+function applyLang(l) {
+  LANG = I18N[l] ? l : "en";
+  localStorage.setItem("coop_lang", LANG);
+  document.documentElement.lang = LANG;
+  document.getElementById("lang-sel").value = LANG;
+  const d = I18N[LANG];
+  document.getElementById("hdr-sub").textContent = d.hdrSub;
+  document.getElementById("btn-revoke-top").textContent = d.revokeTop;
+  document.getElementById("ag-title").textContent = d.agTitle;
+  document.getElementById("ag-desc").textContent = d.agDesc;
+  document.getElementById("btn-auth-unlock").textContent = d.agBtn;
+  document.getElementById("tab-overview").textContent = d.tabs.overview;
+  document.getElementById("tab-security").textContent = d.tabs.security;
+  document.getElementById("tab-tunnel").textContent = d.tabs.tunnel;
+  document.getElementById("tab-plugins").textContent = d.tabs.plugins;
+  document.getElementById("ov-conn-title").textContent = d.ovConn;
+  document.getElementById("ov-url-lbl").textContent = d.ovUrl;
+  document.getElementById("ov-cid-lbl").textContent = d.ovCid;
+  document.getElementById("ov-hint").textContent = d.ovHint;
+  document.getElementById("ov-stat-title").textContent = d.ovStat;
+  document.getElementById("btn-refresh").textContent = d.refresh;
+  document.getElementById("btn-revoke").textContent = d.revoke;
+  document.getElementById("btn-copy-url").textContent = d.copy;
+  document.getElementById("btn-copy-cid").textContent = d.copy;
+  document.getElementById("sec-paths-title").textContent = d.secPaths;
+  document.getElementById("lbl-read-roots").textContent = d.readRoots;
+  document.getElementById("lbl-write-root").textContent = d.writeRoot;
+  document.getElementById("lbl-cloud-dir").textContent = d.cloudDir;
+  document.getElementById("lbl-mirror-dir").textContent = d.mirrorDir;
+  document.getElementById("lbl-soft-steps").textContent = d.softSteps;
+  document.getElementById("lbl-max-steps").textContent = d.maxSteps;
+  document.getElementById("lbl-idle").textContent = d.idle;
+  document.getElementById("btn-save-sandbox").textContent = d.saveSandbox;
+  document.getElementById("sec-auth-title").textContent = d.secAuth;
+  document.getElementById("lbl-req-oauth").textContent = d.reqOauth;
+  document.getElementById("lbl-extra-hosts").textContent = d.extraHosts;
+  document.getElementById("lbl-new-pw").textContent = d.newPw;
+  document.getElementById("lbl-new-pin").textContent = d.newPin;
+  document.getElementById("btn-save-auth").textContent = d.saveAuth;
+  document.getElementById("tun-title").textContent = d.tunTitle;
+  document.getElementById("tun-desc").textContent = d.tunDesc;
+  document.getElementById("tc-cf").textContent = d.tcCf;
+  document.getElementById("tc-ng").textContent = d.tcNg;
+  document.getElementById("tc-ssh").textContent = d.tcSsh;
+  document.getElementById("tc-none").textContent = d.tcNone;
+  document.getElementById("lbl-tun-mode").textContent = d.tunMode;
+  document.getElementById("lbl-pub-url").textContent = d.pubUrl;
+  document.getElementById("btn-save-tunnel").textContent = d.saveTunnel;
+  document.getElementById("pl-cur-title").textContent = d.plCur;
+  document.getElementById("pl-scan-title").textContent = d.plScan;
+  document.getElementById("pl-scan-desc").textContent = d.plScanDesc;
+  document.getElementById("lbl-scan-dir").textContent = d.scanDir;
+  document.getElementById("btn-discover").textContent = d.scan;
+  document.getElementById("btn-import-selected").textContent = d.importSel;
+  document.getElementById("pl-add-title").textContent = d.plAdd;
+  document.getElementById("lbl-add-admin").textContent = d.addAdmin;
+  document.getElementById("btn-add-plugin").textContent = d.addBtn;
+  if (CURRENT_STATE) renderState(CURRENT_STATE);
+}
+
+async function api(path, method = "GET", body = null) {
+  const opts = { method, headers: { "X-Coop-Local-Key": LOCAL_KEY } };
+  if (body !== null) {
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+  const resp = await fetch(path, opts);
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+  return data;
+}
+
+function renderState(st) {
+  CURRENT_STATE = st;
+  const c = st.config;
+  const sp = document.getElementById("sandbox-pill");
+  if (st.admin && st.admin.unlocked) {
+    sp.className = "pill warn";
+    sp.textContent = `${t("sandboxUnlocked")} (${Math.ceil((st.admin.remaining_seconds || 0) / 60)}m)`;
+  } else {
+    sp.className = "pill ok";
+    sp.textContent = t("sandboxLocked");
+  }
+
+  const rb = document.getElementById("restart-banner");
+  if (st.restart_required) {
+    rb.style.display = "block";
+    rb.textContent = t("restartBanner");
+  } else {
+    rb.style.display = "none";
+  }
+
+  document.getElementById("ov-mcp-url").value = st.mcp_endpoint;
+  document.getElementById("ov-client-id").value = c.oauth_client_id;
+  document.getElementById("ov-status-pills").innerHTML = [
+    `<span class="pill ok">Tunnel: ${c.tunnel_mode}</span>`,
+    `<span class="pill ${c.oauth_password_configured ? "ok" : "bad"}">OAuth Password: ${c.oauth_password_configured ? "✓" : "Not Set"}</span>`,
+    `<span class="pill ${c.admin_pin_configured ? "ok" : "warn"}">Admin PIN: ${c.admin_pin_configured ? "✓" : "Not Set"}</span>`,
+    `<span class="pill">Soft Steps: ${c.soft_step_warning}</span>`,
+  ].join("");
+  document.getElementById("ov-paths-summary").innerHTML = `
+    <div><strong>Read:</strong> <span class="mono">${c.read_roots.join(", ")}</span></div>
+    <div><strong>Write:</strong> <span class="mono">${c.write_root}</span></div>
+    <div><strong>CloudSync:</strong> <span class="mono">${c.cloud_sync_dir}</span></div>`;
+
+  document.getElementById("cfg-read-roots").value = c.read_roots.join(", ");
+  document.getElementById("cfg-write-root").value = c.write_root;
+  document.getElementById("cfg-cloud-dir").value = c.cloud_sync_dir;
+  document.getElementById("cfg-mirror-dir").value = c.gdrive_mirror_dir || "";
+  document.getElementById("cfg-soft-steps").value = c.soft_step_warning;
+  document.getElementById("cfg-max-steps").value = c.max_batch_steps;
+  document.getElementById("cfg-idle").value = c.idle_timeout;
+  document.getElementById("cfg-require-oauth").checked = !!c.require_oauth;
+  document.getElementById("cfg-extra-hosts").value = (c.oauth_extra_redirect_hosts || []).join(", ");
+
+  document.getElementById("cfg-tunnel-mode").value = c.tunnel_mode;
+  document.getElementById("cfg-public-url").value = c.public_url;
+  document.getElementById("cfg-ssh-host").value = c.ssh_host || "";
+  document.getElementById("cfg-ssh-user").value = c.ssh_user || "ubuntu";
+  document.getElementById("cfg-ssh-rport").value = c.ssh_remote_port || 18089;
+  document.getElementById("cfg-ssh-key").value = c.ssh_key || "";
+  syncTunnelSelection(c.tunnel_mode);
+
+  renderPlugins(st.plugins || []);
+}
+
+function syncTunnelSelection(mode) {
+  document.querySelectorAll(".tcard").forEach(el => {
+    el.classList.toggle("selected", el.dataset.mode === mode);
+  });
+  document.getElementById("ssh-fields").classList.toggle("hidden", mode !== "ssh");
+}
+
+function renderPlugins(plugins) {
+  const wrap = document.getElementById("plugins-list");
+  wrap.innerHTML = "";
+  for (const p of plugins) {
+    const item = document.createElement("div");
+    item.className = "list-item";
+    const statusBadge = `<span class="pill ${p.enabled ? "ok" : "bad"}">${p.enabled ? t("enabled") : t("disabled")}</span>`;
+    const runBadge = p.running ? `<span class="pill warn">Running</span>` : "";
+    const admBadge = p.require_admin_unlock ? `<span class="pill warn">${t("adminReq")}</span>` : "";
+    item.innerHTML = `
+      <div class="row" style="justify-content:space-between;">
+        <div><strong>${p.name}</strong> <span class="muted">(${p.key} · ${p.transport})</span></div>
+        <div class="row">${statusBadge}${runBadge}${admBadge}</div>
+      </div>
+      <div class="muted" style="margin:6px 0;">${p.description || ""}</div>
+      <div class="row">
+        <button class="sec sm" data-act="toggle" data-key="${p.key}">${p.enabled ? t("disabled") : t("enabled")}</button>
+        <button class="sec sm" data-act="admin" data-key="${p.key}">${t("adminReq")}: ${p.require_admin_unlock ? "ON" : "OFF"}</button>
+        <button class="sec sm" data-act="tools" data-key="${p.key}">${t("testTools")}</button>
+        ${p.running ? `<button class="sec sm" data-act="stop" data-key="${p.key}">${t("stopBtn")}</button>` : ""}
+        ${p.key !== "blender" ? `<button class="danger sm" data-act="del" data-key="${p.key}">${t("delBtn")}</button>` : ""}
+      </div>`;
+    item.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const act = btn.dataset.act;
+        const key = btn.dataset.key;
+        try {
+          if (act === "toggle") {
+            const res = await api("/api/ui/plugins/toggle", "POST", { key, enabled: !p.enabled });
+            renderState(res.state);
+          } else if (act === "admin") {
+            const res = await api("/api/ui/plugins/toggle", "POST", { key, require_admin_unlock: !p.require_admin_unlock });
+            renderState(res.state);
+          } else if (act === "stop") {
+            const res = await api("/api/ui/plugins/stop", "POST", { key });
+            renderState(res.state);
+          } else if (act === "del") {
+            const res = await api("/api/ui/plugins/delete", "POST", { key });
+            renderState(res.state);
+          } else if (act === "tools") {
+            const res = await api("/api/ui/plugins/tools", "POST", { key });
+            document.getElementById("tools-inspector").classList.remove("hidden");
+            document.getElementById("insp-title").textContent = `${p.name} (${res.total_tools} tools)`;
+            document.getElementById("insp-pre").textContent = JSON.stringify(res.tools, null, 2);
+          }
+        } catch (err) { toast(err.message); }
+      });
+    });
+    wrap.appendChild(item);
+  }
+}
+
+async function loadState() {
+  const st = await api("/api/ui/state");
+  document.getElementById("auth-gate").classList.add("hidden");
+  document.getElementById("app-shell").classList.remove("hidden");
+  renderState(st);
+}
+
+document.getElementById("lang-sel").addEventListener("change", e => applyLang(e.target.value));
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-sec").forEach(s => s.classList.add("hidden"));
+    btn.classList.add("active");
+    document.getElementById("sec-" + btn.dataset.tab).classList.remove("hidden");
+  });
+});
+
+document.getElementById("btn-auth-unlock").addEventListener("click", async () => {
+  LOCAL_KEY = document.getElementById("local-key-input").value.trim();
+  sessionStorage.setItem("coop_local_key", LOCAL_KEY);
+  try { await loadState(); } catch (err) { toast(err.message); }
+});
+
+document.getElementById("btn-refresh").addEventListener("click", () => loadState().catch(e => toast(e.message)));
+document.getElementById("btn-copy-url").addEventListener("click", () => { navigator.clipboard.writeText(document.getElementById("ov-mcp-url").value); toast(t("copiedMsg")); });
+document.getElementById("btn-copy-cid").addEventListener("click", () => { navigator.clipboard.writeText(document.getElementById("ov-client-id").value); toast(t("copiedMsg")); });
+
+async function doRevoke() {
+  try {
+    const res = await api("/api/ui/admin/revoke", "POST", {});
+    renderState(res.state);
+    toast(t("revokedMsg"));
+  } catch (e) { toast(e.message); }
+}
+document.getElementById("btn-revoke").addEventListener("click", doRevoke);
+document.getElementById("btn-revoke-top").addEventListener("click", doRevoke);
+
+document.getElementById("btn-save-sandbox").addEventListener("click", async () => {
+  try {
+    const res = await api("/api/ui/config", "POST", {
+      read_roots: document.getElementById("cfg-read-roots").value,
+      write_root: document.getElementById("cfg-write-root").value,
+      cloud_sync_dir: document.getElementById("cfg-cloud-dir").value,
+      gdrive_mirror_dir: document.getElementById("cfg-mirror-dir").value,
+      soft_step_warning: Number(document.getElementById("cfg-soft-steps").value),
+      max_batch_steps: Number(document.getElementById("cfg-max-steps").value),
+      idle_timeout: Number(document.getElementById("cfg-idle").value),
+    });
+    renderState(res.state);
+    toast(t("savedMsg"));
+  } catch (e) { toast(e.message); }
+});
+
+document.getElementById("btn-save-auth").addEventListener("click", async () => {
+  try {
+    const res = await api("/api/ui/config", "POST", {
+      require_oauth: document.getElementById("cfg-require-oauth").checked,
+      oauth_extra_redirect_hosts: document.getElementById("cfg-extra-hosts").value,
+      new_oauth_password: document.getElementById("cfg-new-pw").value,
+      new_admin_pin: document.getElementById("cfg-new-pin").value,
+    });
+    document.getElementById("cfg-new-pw").value = "";
+    document.getElementById("cfg-new-pin").value = "";
+    renderState(res.state);
+    toast(t("savedMsg"));
+  } catch (e) { toast(e.message); }
+});
+
+document.querySelectorAll(".tcard").forEach(el => {
+  el.addEventListener("click", () => {
+    document.getElementById("cfg-tunnel-mode").value = el.dataset.mode;
+    syncTunnelSelection(el.dataset.mode);
+  });
+});
+document.getElementById("cfg-tunnel-mode").addEventListener("change", e => syncTunnelSelection(e.target.value));
+
+document.getElementById("btn-save-tunnel").addEventListener("click", async () => {
+  try {
+    const res = await api("/api/ui/config", "POST", {
+      tunnel_mode: document.getElementById("cfg-tunnel-mode").value,
+      public_url: document.getElementById("cfg-public-url").value,
+      ssh_host: document.getElementById("cfg-ssh-host").value,
+      ssh_user: document.getElementById("cfg-ssh-user").value,
+      ssh_remote_port: Number(document.getElementById("cfg-ssh-rport").value || 18089),
+      ssh_key: document.getElementById("cfg-ssh-key").value,
+    });
+    renderState(res.state);
+    toast(t("savedMsg"));
+  } catch (e) { toast(e.message); }
+});
+
+document.getElementById("btn-discover").addEventListener("click", async () => {
+  try {
+    const res = await api("/api/ui/discover", "POST", { scan_folder: document.getElementById("scan-folder-input").value });
+    LAST_DISCOVERY = [...(res.client_candidates || []), ...(res.folder_candidates || []), ...(res.templates || [])];
+    const box = document.getElementById("discover-results");
+    if (!LAST_DISCOVERY.length) {
+      box.textContent = res.folder_error || "No candidates found.";
+      document.getElementById("discover-actions").classList.add("hidden");
+      return;
+    }
+    box.innerHTML = LAST_DISCOVERY.map((item, idx) => `
+      <label class="list-item" style="display:block;cursor:pointer;">
+        <input type="checkbox" class="disc-chk" data-idx="${idx}" style="width:auto;margin-right:8px;">
+        <strong>${item.display_name}</strong> <span class="pill">${item.source}</span>
+        <span class="pill">${item.transport}</span>
+        ${item.require_admin_unlock ? `<span class="pill warn">${t("adminReq")}</span>` : ""}
+        <div class="muted">${item.description || ""}</div>
+      </label>`).join("");
+    document.getElementById("discover-actions").classList.remove("hidden");
+  } catch (e) { toast(e.message); }
+});
+
+document.getElementById("btn-import-selected").addEventListener("click", async () => {
+  const chosen = [];
+  document.querySelectorAll(".disc-chk:checked").forEach(chk => {
+    chosen.push(LAST_DISCOVERY[Number(chk.dataset.idx)]);
+  });
+  if (!chosen.length) return;
+  try {
+    const res = await api("/api/ui/plugins/import", "POST", { items: chosen });
+    renderState(res.state);
+    toast(t("importedMsg"));
+  } catch (e) { toast(e.message); }
+});
+
+document.getElementById("add-transport").addEventListener("change", e => {
+  const isUrl = e.target.value !== "stdio";
+  document.getElementById("add-cmd-wrap").classList.toggle("hidden", isUrl);
+  document.getElementById("add-url-wrap").classList.toggle("hidden", !isUrl);
+});
+
+document.getElementById("btn-add-plugin").addEventListener("click", async () => {
+  const tr = document.getElementById("add-transport").value;
+  const payload = {
+    key: document.getElementById("add-key").value.trim(),
+    display_name: document.getElementById("add-name").value.trim(),
+    transport: tr,
+    require_admin_unlock: document.getElementById("add-admin").checked,
+  };
+  if (tr === "stdio") {
+    payload.command = document.getElementById("add-cmd").value.trim().split(/\s+/).filter(Boolean);
+  } else {
+    payload.url = document.getElementById("add-url").value.trim();
+  }
+  try {
+    const res = await api("/api/ui/plugins/add", "POST", payload);
+    renderState(res.state);
+    toast(t("savedMsg"));
+  } catch (e) { toast(e.message); }
+});
+
+(async function init() {
+  applyLang(LANG);
+  document.getElementById("discover-results").textContent = t("noDiscovered");
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  LOCAL_KEY = hash.get("key") || sessionStorage.getItem("coop_local_key") || "";
+  if (hash.get("key")) {
+    sessionStorage.setItem("coop_local_key", LOCAL_KEY);
+    history.replaceState(null, "", window.location.pathname);
+  }
+  if (!LOCAL_KEY) {
+    document.getElementById("auth-gate").classList.remove("hidden");
+    return;
+  }
+  try {
+    await loadState();
+  } catch (_err) {
+    document.getElementById("auth-gate").classList.remove("hidden");
+  }
+})();
+</script>
+</body>
+</html>

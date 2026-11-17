@@ -11,6 +11,8 @@ SUITES = [
     "test_efficiency_upgrades.py",
     "test_oauth.py",
     "test_admin_privilege.py",
+    "test_ui_and_discovery.py",
+    "test_external_ai_e2e.py",
 ]
 
 

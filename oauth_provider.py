@@ -351,6 +351,7 @@ class OAuth21Provider:
             csrf=csrf,
             read_roots_summary=self.read_roots_summary,
             write_root_summary=self.write_root_summary,
+            initial_lang=_detect_lang(scope),
             error_msg=error_msg,
         )
         await _send_html(send, 200, page)
@@ -394,6 +395,7 @@ class OAuth21Provider:
                 csrf=self._issue_csrf(),
                 read_roots_summary=self.read_roots_summary,
                 write_root_summary=self.write_root_summary,
+                initial_lang=_detect_lang(scope),
                 error_msg="Invalid password. Please try again.",
             )
             await _send_html(send, 401, page)
@@ -543,6 +545,27 @@ async def _send_html(send: Send, status: int, content: str) -> None:
     await send({"type": "http.response.body", "body": body, "more_body": False})
 
 
+def _detect_lang(scope: Scope | None) -> str:
+    if not scope:
+        return "en"
+    qs = parse_qs(scope.get("query_string", b"").decode("utf-8", errors="ignore"))
+    q_lang = _first(qs, "lang").lower()
+    if q_lang in ("zh-hant", "zh-tw", "zh"):
+        return "zh-Hant"
+    if q_lang == "ja":
+        return "ja"
+    if q_lang == "en":
+        return "en"
+    for name, val in scope.get("headers", []):
+        if name.decode("latin-1").lower() == "accept-language":
+            al = val.decode("latin-1").lower()
+            if "zh" in al:
+                return "zh-Hant"
+            if "ja" in al:
+                return "ja"
+    return "en"
+
+
 def _render_error_page(message: str) -> str:
     safe_msg = html.escape(message)
     return f"""<!DOCTYPE html>
@@ -563,19 +586,25 @@ def _render_login_page(
     csrf: str,
     read_roots_summary: str,
     write_root_summary: str,
+    initial_lang: str = "en",
     error_msg: str = "",
 ) -> str:
     err_html = f'<div class="err">{html.escape(error_msg)}</div>' if error_msg else ""
+    read_esc = html.escape(read_roots_summary)
+    write_esc = html.escape(write_root_summary)
+    host_esc = html.escape(urlparse(redirect_uri).hostname or "")
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html.escape(initial_lang)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CoopMCP Authorization</title>
 <style>
   body {{ font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; }}
-  .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,.45); }}
-  h1 {{ font-size: 1.25rem; margin: 0 0 8px; color: #fde047; }}
+  .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; width: 100%; max-width: 430px; box-shadow: 0 20px 50px rgba(0,0,0,.45); }}
+  .top {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }}
+  h1 {{ font-size: 1.25rem; margin: 0; color: #fde047; }}
+  select {{ background: #0f172a; color: #cbd5e1; border: 1px solid #475569; border-radius: 8px; padding: 4px 8px; font-size: 0.8rem; }}
   p {{ font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; margin: 0 0 18px; }}
   .err {{ background: rgba(239,68,68,.15); border: 1px solid #ef4444; color: #fca5a5; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; font-size: 0.9rem; }}
   label {{ display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; }}
@@ -587,8 +616,15 @@ def _render_login_page(
 </head>
 <body>
   <div class="card">
-    <h1>🐤 CoopMCP Authorization</h1>
-    <p>An AI client is requesting sandboxed access to <strong>{html.escape(read_roots_summary)}</strong> (outputs confined to <strong>{html.escape(write_root_summary)}</strong>). Enter your gateway password to approve:</p>
+    <div class="top">
+      <h1 id="t-title">🐤 CoopMCP Authorization</h1>
+      <select id="lang-sel" aria-label="Language">
+        <option value="zh-Hant">繁體中文</option>
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+    <p id="t-desc"></p>
     {err_html}
     <form method="post" action="/oauth/authorize">
       <input type="hidden" name="client_id" value="{html.escape(client_id)}">
@@ -598,11 +634,54 @@ def _render_login_page(
       <input type="hidden" name="code_challenge_method" value="{html.escape(code_challenge_method)}">
       <input type="hidden" name="scope" value="{html.escape(scope_str)}">
       <input type="hidden" name="csrf" value="{html.escape(csrf)}">
-      <label for="password">Gateway Password</label>
+      <label id="t-pw-label" for="password">Gateway Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
-      <button type="submit">Approve &amp; Connect</button>
+      <button id="t-submit" type="submit">Approve &amp; Connect</button>
     </form>
-    <div class="meta">Callback host: {html.escape(urlparse(redirect_uri).hostname or '')}</div>
+    <div class="meta"><span id="t-cb">Callback host:</span> {host_esc}</div>
   </div>
+<script>
+const READ_ROOTS = {json.dumps(read_esc)};
+const WRITE_ROOT = {json.dumps(write_esc)};
+const I18N = {{
+  "en": {{
+    title: "🐤 CoopMCP Authorization",
+    desc: `An AI client is requesting sandboxed access to <strong>${{READ_ROOTS}}</strong> (outputs confined to <strong>${{WRITE_ROOT}}</strong>). Enter your gateway password to approve:`,
+    pw: "Gateway Password",
+    btn: "Approve & Connect",
+    cb: "Callback host:"
+  }},
+  "zh-Hant": {{
+    title: "🐤 CoopMCP 安全授權",
+    desc: `遠端 AI 正請求沙盒存取 <strong>${{READ_ROOTS}}</strong>（輸出鎖定於 <strong>${{WRITE_ROOT}}</strong>）。請輸入閘道管理密碼以確認授權：`,
+    pw: "閘道授權密碼",
+    btn: "驗證並授權連線",
+    cb: "回呼目標："
+  }},
+  "ja": {{
+    title: "🐤 CoopMCP 認可ログイン",
+    desc: `リモートAIが <strong>${{READ_ROOTS}}</strong> へのサンドボックスアクセスを要求しています（出力先は <strong>${{WRITE_ROOT}}</strong> に限定）。パスワードを入力して許可してください：`,
+    pw: "ゲートウェイパスワード",
+    btn: "認証して接続を許可",
+    cb: "コールバック先："
+  }}
+}};
+const sel = document.getElementById("lang-sel");
+const saved = localStorage.getItem("coop_lang");
+const initial = I18N[saved] ? saved : (I18N[{json.dumps(initial_lang)}] ? {json.dumps(initial_lang)} : "en");
+function applyLang(l) {{
+  const d = I18N[l] || I18N.en;
+  document.documentElement.lang = l;
+  document.getElementById("t-title").textContent = d.title;
+  document.getElementById("t-desc").innerHTML = d.desc;
+  document.getElementById("t-pw-label").textContent = d.pw;
+  document.getElementById("t-submit").textContent = d.btn;
+  document.getElementById("t-cb").textContent = d.cb;
+  sel.value = l;
+  localStorage.setItem("coop_lang", l);
+}}
+sel.addEventListener("change", () => applyLang(sel.value));
+applyLang(initial);
+</script>
 </body>
 </html>"""

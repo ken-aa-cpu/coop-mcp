@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 import urllib.request
+import webbrowser
 
 from PIL import Image
 import pystray
@@ -425,6 +426,10 @@ class CoopTrayController:
             except Exception:
                 pass
 
+    def on_open_ui(self, _icon: pystray.Icon, _item: MenuItem) -> None:
+        url = f"http://{self.cfg['host']}:{self.cfg['port']}/ui#key={self.cfg['secret_key']}"
+        webbrowser.open(url)
+
     def on_open_output_dir(self, _icon: pystray.Icon, _item: MenuItem) -> None:
         out_dir = Path(self.cfg["write_root"])
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -461,9 +466,20 @@ class CoopTrayController:
         self.stop_processes()
         icon.stop()
 
-    def run(self) -> None:
+    def open_ui_when_ready(self, timeout: float = 8.0) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline and not self.stop_event.is_set():
+            gw_ok, _, _ = self._poll_health()
+            if gw_ok:
+                break
+            time.sleep(0.25)
+        webbrowser.open(f"http://{self.cfg['host']}:{self.cfg['port']}/ui#key={self.cfg['secret_key']}")
+
+    def run(self, *, open_ui: bool = False) -> None:
         ensure_ico_from_png()
         self.start_processes()
+        if open_ui:
+            threading.Thread(target=self.open_ui_when_ready, daemon=True).start()
 
         if CHICK_PNG.exists():
             tray_image = Image.open(CHICK_PNG).convert("RGBA")
@@ -476,6 +492,7 @@ class CoopTrayController:
             MenuItem(lambda _item: self.active_apps_text, None, enabled=False),
             MenuItem(lambda _item: f"Domain: {self.cfg['public_domain']}", None, enabled=False),
             Menu.SEPARATOR,
+            MenuItem("⚙️ Open Settings UI", self.on_open_ui, default=True),
             MenuItem("🔒 Lock Sandbox & Revoke Admin Tokens", self.on_revoke_admin),
             MenuItem("Copy MCP Endpoint URL", self.on_copy_url),
             MenuItem("Copy OAuth Client ID", self.on_copy_client_id),
@@ -504,12 +521,16 @@ class CoopTrayController:
 
 
 def main() -> None:
+    open_ui = "--open-ui" in sys.argv[1:]
     mutex = ensure_single_instance()
     if mutex is None:
         logger.info("Another instance is already running; exiting.")
+        if open_ui:
+            cfg = ensure_env_config()
+            webbrowser.open(f"http://{cfg['host']}:{cfg['port']}/ui#key={cfg['secret_key']}")
         return
     try:
-        CoopTrayController().run()
+        CoopTrayController().run(open_ui=open_ui)
     finally:
         ctypes.WinDLL("kernel32").CloseHandle(mutex)
 

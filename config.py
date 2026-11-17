@@ -73,6 +73,8 @@ class GatewayConfig:
     gdrive_mirror_dir: Path | None
     apps_config_path: Path
     idle_timeout: int
+    soft_step_warning: int
+    max_batch_steps: int
 
     blender_exe: Path
     blender_host: str
@@ -140,6 +142,8 @@ class GatewayConfig:
             gdrive_mirror_dir=gdrive_mirror_dir,
             apps_config_path=apps_cfg_path,
             idle_timeout=int(os.getenv("COOP_IDLE_TIMEOUT", "900") or "900"),
+            soft_step_warning=max(1, int(os.getenv("COOP_SOFT_STEP_WARNING", "25") or "25")),
+            max_batch_steps=max(10, int(os.getenv("COOP_MAX_BATCH_STEPS", "100") or "100")),
             blender_exe=detect_blender_exe(),
             blender_host=os.getenv("COOP_BLENDER_HOST", "127.0.0.1").strip() or "127.0.0.1",
             blender_port=int(os.getenv("COOP_BLENDER_PORT", "9877") or "9877"),

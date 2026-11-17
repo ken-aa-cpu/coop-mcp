@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 import shutil
 import sys
@@ -92,7 +93,10 @@ async def run_tests() -> None:
             unrestricted=mgr.is_unrestricted(),
         )
         assert Path(out_w["path"]).exists()
-        cmd_res = await mgr.run_command("Write-Output 'COOP_CMD_OK'", cwd=str(outside_dir))
+        if os.name == "nt":
+            cmd_res = await mgr.run_command("Write-Output 'COOP_CMD_OK'", cwd=str(outside_dir), shell="powershell")
+        else:
+            cmd_res = await mgr.run_command("echo COOP_CMD_OK", cwd=str(outside_dir), shell="sh")
         assert cmd_res["exit_code"] == 0 and "COOP_CMD_OK" in cmd_res["stdout"]
 
         # 5. Toggle locked -> re-open using admin_token (no PIN needed within 1h)

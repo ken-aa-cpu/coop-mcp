@@ -1,0 +1,167 @@
+{
+  "ecosystem": "ArtCraft",
+  "website": "https://getartcraft.com/",
+  "description": "ArtCraft is an open-source, pure-Rust creative and productivity suite with built-in CLI MCP servers. Place binaries on PATH or scan your ArtCraft install folder in CoopMCP Settings UI.",
+  "apps": [
+    {
+      "key": "wordcraft",
+      "display_name": "WordCraft",
+      "category": "Document",
+      "description": "Word processor: create/edit/convert .docx, .doc, .odt, .rtf, .md, .txt, .html, export PDF/PNG.",
+      "exe_name": "wordcraft-cli",
+      "formats": [".docx", ".doc", ".odt", ".rtf", ".md", ".txt", ".html", ".pdf"],
+      "root_mode": "automation",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "deckcraft",
+      "display_name": "DeckCraft",
+      "category": "Presentation",
+      "description": "Presentation studio: create/edit/render/export .deckcraft and .pptx slides to PDF/PNG.",
+      "exe_name": "deckcraft-cli",
+      "formats": [".deckcraft", ".pptx", ".pdf", ".png"],
+      "root_mode": "automation",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "gridcraft",
+      "display_name": "GridCraft",
+      "category": "Spreadsheet",
+      "description": "Spreadsheet engine: open/edit/calculate formulas/charts/tables in .xlsx, .csv, .tsv, export PDF/HTML.",
+      "exe_name": "gridcraft-cli",
+      "formats": [".xlsx", ".csv", ".tsv", ".json", ".pdf"],
+      "root_mode": "gateway_only",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "designcraft",
+      "display_name": "DesignCraft",
+      "category": "Desktop Publishing",
+      "description": "Page layout & publishing studio: multi-page magazines, brochures, typography, export PDF/PNG.",
+      "exe_name": "designcraft-cli",
+      "formats": [".designcraft", ".idml", ".pdf", ".png"],
+      "root_mode": "automation",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "photocraft",
+      "display_name": "PhotoCraft",
+      "category": "Raster Image",
+      "description": "Photo & raster editor: layers, adjustments, smart objects, export PNG/JPG/WEBP/PSD.",
+      "exe_name": "photocraft-cli",
+      "formats": [".png", ".jpg", ".jpeg", ".webp", ".psd", ".tiff"],
+      "root_mode": "automation",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "lightcraft",
+      "display_name": "LightCraft",
+      "category": "Photo Library & RAW",
+      "description": "Photo catalog & RAW developer: import photos, exposure/color/crop/presets, export JPG/PNG/TIFF/DNG/PSD.",
+      "exe_name": "lightcraft-cli",
+      "formats": [".dng", ".raw", ".cr2", ".nef", ".arw", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".avif", ".psd"],
+      "root_mode": "gateway_only",
+      "extra_mcp_args": ["--compact"]
+    },
+    {
+      "key": "vectorcraft",
+      "display_name": "VectorCraft",
+      "category": "Vector Graphics",
+      "description": "Vector illustration tool: paths, shapes, typography, SVG/PDF design and export.",
+      "exe_name": "vectorcraft-cli",
+      "formats": [".svg", ".pdf", ".eps", ".png"],
+      "root_mode": "automation",
+      "extra_mcp_args": ["--headless"]
+    },
+    {
+      "key": "figcraft",
+      "display_name": "FigCraft",
+      "category": "UI Design",
+      "description": "UI & interface design tool: frames, nodes, properties, components, export SVG/PNG/PDF.",
+      "exe_name": "figcraft-cli",
+      "formats": [".figcraft", ".svg", ".png", ".pdf"],
+      "root_mode": "automation",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "anicraft",
+      "display_name": "AniCraft",
+      "category": "2D Animation",
+      "description": "2D frame & vector animation engine: timeline layers, drawing commands, render PNG frames or GIF.",
+      "exe_name": "anicraft-cli",
+      "formats": [".anicraft", ".gif", ".png", ".svg"],
+      "root_mode": "gateway_only",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "soundcraft",
+      "display_name": "SoundCraft",
+      "category": "Audio / DAW",
+      "description": "Audio editor & DAW: import audio, arrange, effects, bounce/export WAV/MP3/FLAC.",
+      "exe_name": "soundcraft-cli",
+      "formats": [".wav", ".mp3", ".flac", ".ogg", ".aiff"],
+      "root_mode": "automation",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "filmcraft",
+      "display_name": "FilmCraft",
+      "category": "Video Editor",
+      "description": "Video NLE: import media, edit sequences/timeline, render frames and export video.",
+      "exe_name": "filmcraft-cli",
+      "formats": [".fcproj", ".mp4", ".mov", ".mkv", ".wav", ".png"],
+      "root_mode": "gateway_only",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "effectcraft",
+      "display_name": "EffectCraft",
+      "category": "Motion / VFX",
+      "description": "Motion graphics & compositing: compositions, layers, keyframes, effects, render frames/video.",
+      "exe_name": "effectcraft-cli",
+      "formats": [".ecproj", ".mp4", ".mov", ".png", ".exr"],
+      "root_mode": "automation",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "cadcraft",
+      "display_name": "CADCraft",
+      "category": "2D CAD Drafting",
+      "description": "2D CAD drafting: entities, layers, dimensions, query/draw/convert DXF, DWG, DWT, SVG, PNG, PDF.",
+      "exe_name": "cadcraft-cli",
+      "formats": [".dxf", ".dwg", ".dwt", ".svg", ".png", ".pdf"],
+      "root_mode": "gateway_only",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "solidcraft",
+      "display_name": "SolidCraft",
+      "category": "3D Parametric CAD",
+      "description": "Parametric 3D solid modeling: sketches, extrude/boolean, measure, export STEP/STL/OBJ/3MF and PNG snapshots.",
+      "exe_name": "solidcraft-cli",
+      "formats": [".sc", ".step", ".stp", ".stl", ".obj", ".3mf", ".png"],
+      "root_mode": "allow_path",
+      "extra_mcp_args": ["--headless", "--require-allow-path"]
+    },
+    {
+      "key": "materialcraft",
+      "display_name": "MaterialCraft",
+      "category": "3D Material",
+      "description": "Procedural PBR material graph editor: node graphs, bitmaps, render & export material maps.",
+      "exe_name": "materialcraft-cli",
+      "formats": [".mcraft", ".sbsar", ".png", ".exr"],
+      "root_mode": "short",
+      "extra_mcp_args": []
+    },
+    {
+      "key": "texturecraft",
+      "display_name": "TextureCraft",
+      "category": "3D Texture Painting",
+      "description": "3D texture painter: mesh import, bake maps, paint strokes, export PBR textures.",
+      "exe_name": "texturecraft-cli",
+      "formats": [".tcraft", ".obj", ".fbx", ".glb", ".png"],
+      "root_mode": "short",
+      "extra_mcp_args": []
+    }
+  ]
+}
